@@ -11,8 +11,6 @@ interface TicketOverlayDescriptionProps {
   onToggleExpanded: () => void
   canEdit: boolean
   canView: boolean
-  onDataRefresh?: () => Promise<void>
-  onLocalRefresh?: () => Promise<void> | void
 }
 
 // Helper pour extraire l'URL d'un champ d'attachement Airtable
@@ -53,7 +51,7 @@ function ImageWithSkeleton({ src, alt, width, height, className }: { src: string
   )
 }
 
-export function TicketOverlayDescription({ project, expanded, onToggleExpanded, canEdit, onDataRefresh, onLocalRefresh }: TicketOverlayDescriptionProps) {
+export function TicketOverlayDescription({ project, expanded, onToggleExpanded, canEdit }: TicketOverlayDescriptionProps) {
   const [contextExpanded, setContextExpanded] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -81,10 +79,16 @@ export function TicketOverlayDescription({ project, expanded, onToggleExpanded, 
 
       if (Object.keys(fieldsToUpdate).length > 0) {
         await updateExperimentationFields(project.id, fieldsToUpdate)
+        
+        // Mise à jour immédiate de l'état local (stratégie de synchronisation)
+        // L'état editedProject est déjà à jour, donc pas besoin de mise à jour locale
+        
         toast.success('Description updated successfully!')
         setIsEditing(false)
-        if (onLocalRefresh) await onLocalRefresh()
-        if (onDataRefresh) await onDataRefresh()
+        
+        // Pas de rafraîchissement automatique pour éviter d'écraser l'état local
+        // if (onLocalRefresh) await onLocalRefresh()
+        // if (onDataRefresh) await onDataRefresh()
       }
     } catch (error) {
       toast.error('Failed to update description.')
@@ -160,7 +164,7 @@ export function TicketOverlayDescription({ project, expanded, onToggleExpanded, 
               />
             ) : (
               <div className="text-xs text-gray-900 italic">
-                {project.hypothesis || '-'}
+                {editedProject.hypothesis || '-'}
               </div>
             )}
           </div>
@@ -179,7 +183,7 @@ export function TicketOverlayDescription({ project, expanded, onToggleExpanded, 
               />
             ) : (
               <div className="text-xs text-gray-900">
-                {project.description || '-'}
+                {editedProject.description || '-'}
               </div>
             )}
           </div>
@@ -206,7 +210,7 @@ export function TicketOverlayDescription({ project, expanded, onToggleExpanded, 
                   />
                 ) : (
                   <div className="text-xs text-gray-900">
-                    {project.context || '-'}
+                    {editedProject.context || '-'}
                   </div>
                 )}
               </div>

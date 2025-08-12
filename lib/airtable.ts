@@ -88,6 +88,8 @@ export async function fetchExperimentations(): Promise<AirtableRecord[]> {
       'Conversion': r.fields['Conversion'] || '',
       'Existing % Rate': r.fields['Existing % Rate'] || '',
       'Traffic Allocation': r.fields['Traffic Allocation'] || '',
+      // Champ pour le fichier d'analyse
+      'Results - Deepdive': r.fields['Results - Deepdive'] || null,
     }
   }))
   
@@ -333,4 +335,81 @@ export async function fetchDevices() {
   const records = await fetchExperimentations();
   const devices = Array.from(new Set(records.map(r => (r.fields['Devices'] as string) || '').filter(Boolean)));
   return devices.sort();
+} 
+
+export async function updateAnalysisFile(id: string, fileUrl: string, fileName: string) {
+  const url = `${AIRTABLE_API_URL}/${id}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      fields: { 
+        'Results - Deepdive': [
+          { 
+            url: fileUrl,
+            filename: fileName
+          }
+        ]
+      } 
+    }),
+  });
+  
+  if (!res.ok) {
+    let errorMessage = 'Failed to update analysis file'
+    try {
+      const errorData = await res.json()
+      console.error('Airtable error response:', errorData)
+      if (errorData.error && errorData.error.message) {
+        errorMessage = `Airtable error: ${errorData.error.message}`
+      }
+    } catch (parseError) {
+      console.error('Could not parse Airtable error response:', parseError)
+    }
+    
+    throw new Error(errorMessage)
+  }
+  
+  // Invalider le cache des expérimentations
+  airtableCache.invalidate('experimentations')
+  
+  return res.json();
+} 
+
+export async function deleteAnalysisFile(id: string) {
+  const url = `${AIRTABLE_API_URL}/${id}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      fields: { 
+        'Results - Deepdive': null
+      } 
+    }),
+  });
+  
+  if (!res.ok) {
+    let errorMessage = 'Failed to delete analysis file'
+    try {
+      const errorData = await res.json()
+      console.error('Airtable error response:', errorData)
+      if (errorData.error && errorData.error.message) {
+        errorMessage = `Airtable error: ${errorData.error.message}`
+      }
+    } catch (parseError) {
+      console.error('Could not parse Airtable error response:', parseError)
+    }
+    
+    throw new Error(errorMessage)
+  }
+  
+  // Invalider le cache des expérimentations
+  airtableCache.invalidate('experimentations')
+  
+  return res.json();
 } 

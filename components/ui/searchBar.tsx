@@ -27,7 +27,7 @@ export function SearchBar({
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
       <Input
         placeholder={placeholder}
-        className="pl-10 rounded-2xl border border-gray-200 focus:border-gray-300 focus:outline-none transition-all duration-200 hover:border-gray-300"
+        className="pl-10 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200 hover:border-primary/60 hover:bg-accent/50 focus-visible:ring-violet-500/30"
         onChange={handleChange}
         {...props}
       />

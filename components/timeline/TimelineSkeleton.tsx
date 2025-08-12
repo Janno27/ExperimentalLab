@@ -63,17 +63,30 @@ export function TimelineSkeleton() {
                 {/* Timeline bar */}
                 <div className="flex-1 relative">
                   <div className="h-6 bg-gray-100 rounded-md relative overflow-hidden">
-                    {/* Random project bars */}
-                    {Array.from({ length: Math.floor(Math.random() * 3) + 1 }).map((_, barIndex) => (
-                      <div
-                        key={barIndex}
-                        className="absolute top-1 h-4 bg-gray-200 rounded animate-pulse"
-                        style={{
-                          left: `${Math.random() * 60}%`,
-                          width: `${20 + Math.random() * 30}%`
-                        }}
-                      />
-                    ))}
+                    {/* Project bars avec différentes couleurs pour simuler les vrais ProjectBar */}
+                    {Array.from({ length: Math.floor(Math.random() * 4) + 1 }).map((_, barIndex) => {
+                      // Simuler différentes couleurs de statut comme dans ProjectBar (couleurs plus subtiles)
+                      const statusColors = [
+                        'bg-blue-100', // Open, Refinement - plus subtil
+                        'bg-green-100', // Running, Ready for Analysis - plus subtil
+                        'bg-purple-100', // Design & Development - plus subtil
+                        'bg-orange-100', // Setup - plus subtil
+                        'bg-gray-100',  // Done, Non Conclusive - plus subtil
+                        'bg-red-100'    // Denied - plus subtil
+                      ]
+                      const randomColor = statusColors[Math.floor(Math.random() * statusColors.length)]
+                      
+                      return (
+                        <div
+                          key={barIndex}
+                          className={`absolute top-1 h-4 ${randomColor} rounded animate-pulse shadow-sm`}
+                          style={{
+                            left: `${Math.random() * 60}%`,
+                            width: `${15 + Math.random() * 40}%`
+                          }}
+                        />
+                      )
+                    })}
                   </div>
                 </div>
               </div>

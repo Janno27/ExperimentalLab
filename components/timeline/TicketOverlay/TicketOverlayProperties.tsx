@@ -11,8 +11,6 @@ interface TicketOverlayPropertiesProps {
   onToggleExpanded: () => void
   canEdit: boolean
   canView: boolean
-  onDataRefresh?: () => Promise<void>
-  onLocalRefresh?: () => Promise<void> | void
 }
 
 // Helper pour formater une date
@@ -139,7 +137,7 @@ function DatePicker({ value, onChange, disabled }: { value: string, onChange: (v
   )
 }
 
-export function TicketOverlayProperties({ project, expanded, onToggleExpanded, canEdit, onDataRefresh, onLocalRefresh }: TicketOverlayPropertiesProps) {
+export function TicketOverlayProperties({ project, expanded, onToggleExpanded, canEdit }: TicketOverlayPropertiesProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedProject, setEditedProject] = useState(project)
   const [isSaving, setIsSaving] = useState(false)
@@ -255,10 +253,16 @@ export function TicketOverlayProperties({ project, expanded, onToggleExpanded, c
 
       if (Object.keys(fieldsToUpdate).length > 0) {
         await updateExperimentationFields(project.id, fieldsToUpdate)
+        
+        // Mise à jour immédiate de l'état local (stratégie de synchronisation)
+        // L'état editedProject est déjà à jour, donc pas besoin de mise à jour locale
+        
         toast.success('Project updated successfully!')
         setIsEditing(false)
-        if (onLocalRefresh) await onLocalRefresh()
-        if (onDataRefresh) await onDataRefresh()
+        
+        // Pas de rafraîchissement automatique pour éviter d'écraser l'état local
+        // if (onLocalRefresh) await onLocalRefresh()
+        // if (onDataRefresh) await onDataRefresh()
       }
     } catch (error) {
       toast.error('Failed to update project.')
@@ -374,7 +378,7 @@ export function TicketOverlayProperties({ project, expanded, onToggleExpanded, c
                   )}
                 </>
               ) : (
-                <span className="text-gray-900 truncate">{displayedStatus}</span>
+                <span className="text-gray-900 truncate">{editedProject.status}</span>
               )}
               {isSaving && changedStatus && (
                 <div className="ml-2 w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" aria-label="Saving" />
@@ -420,7 +424,7 @@ export function TicketOverlayProperties({ project, expanded, onToggleExpanded, c
                   )}
                 </>
               ) : (
-                <span className="text-gray-900 truncate">{project.owner || '-'}</span>
+                <span className="text-gray-900 truncate">{owners.find(o => o.id === selectedOwnerId)?.name || project.owner || '-'}</span>
               )}
               {isSaving && changedOwner && (
                 <div className="ml-2 w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
@@ -443,7 +447,7 @@ export function TicketOverlayProperties({ project, expanded, onToggleExpanded, c
                 </div>
               ) : (
               <span className="text-gray-900 truncate">
-                {formatDate(project.startDate)} → {formatDate(project.endDate)}
+                {formatDate(new Date(startDateStr + 'T00:00:00Z'))} → {formatDate(new Date(previewEndISO + 'T00:00:00Z'))}
               </span>
               )}
               {isSaving && changedDates && (
@@ -467,7 +471,7 @@ export function TicketOverlayProperties({ project, expanded, onToggleExpanded, c
                   className="h-6 px-2 py-0.5 border border-gray-300 rounded text-xs text-gray-900 bg-white w-20"
                 />
               ) : (
-              <span className="text-gray-900 truncate">{project.estimatedTime} days</span>
+              <span className="text-gray-900 truncate">{estimatedTimeStr || project.estimatedTime} days</span>
               )}
               {isSaving && changedEstimated && (
                 <div className="ml-2 w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
@@ -479,7 +483,7 @@ export function TicketOverlayProperties({ project, expanded, onToggleExpanded, c
           <div className="flex items-center gap-4 text-xs">
             <span className="text-gray-600 w-28 flex-shrink-0">Test Type:</span>
             <div className="flex items-center gap-2 min-w-0 relative" ref={testTypeDropdownRef}>
-              {getTestTypeIcon(project.testType)}
+              {getTestTypeIcon(editedProject.testType)}
               {isEditing && canEdit ? (
                 <>
                   <button
@@ -508,7 +512,7 @@ export function TicketOverlayProperties({ project, expanded, onToggleExpanded, c
                   )}
                 </>
               ) : (
-              <span className="text-gray-900 truncate">{project.testType || '-'}</span>
+              <span className="text-gray-900 truncate">{editedProject.testType || '-'}</span>
               )}
               {isSaving && changedTestType && (
                 <div className="ml-2 w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
@@ -548,7 +552,7 @@ export function TicketOverlayProperties({ project, expanded, onToggleExpanded, c
                   )}
                 </>
               ) : (
-              <span className="text-gray-900 truncate">{project.tool || '-'}</span>
+              <span className="text-gray-900 truncate">{editedProject.tool || '-'}</span>
               )}
               {isSaving && changedTool && (
                 <div className="ml-2 w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
@@ -588,7 +592,7 @@ export function TicketOverlayProperties({ project, expanded, onToggleExpanded, c
                   )}
                 </>
               ) : (
-              <span className="text-gray-900 truncate">{project.scope || '-'}</span>
+              <span className="text-gray-900 truncate">{editedProject.scope || '-'}</span>
               )}
               {isSaving && changedScope && (
                 <div className="ml-2 w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />

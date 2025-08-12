@@ -10,6 +10,8 @@ interface FilteredBadgeProps {
     market?: string[]
     region?: string
     selectedMonth?: Date
+    scope?: string[]
+    role?: string[]
   }
   excludeMonth?: boolean
 }
@@ -40,6 +42,12 @@ export function FilteredBadge({ filters, excludeMonth = false }: FilteredBadgePr
   }
   if (filters.region) {
     activeFilters.push(`Region: ${filters.region}`)
+  }
+  if (filters.scope && filters.scope.length > 0) {
+    activeFilters.push(`Scope: ${filters.scope.join(', ')}`)
+  }
+  if (filters.role && filters.role.length > 0) {
+    activeFilters.push(`Role: ${filters.role.join(', ')}`)
   }
 
   if (activeFilters.length === 0) return null

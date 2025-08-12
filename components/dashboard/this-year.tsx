@@ -141,7 +141,7 @@ export function ThisYear({ region, status, owner, market }: ThisYearProps) {
 
   if (loading || dataLoading) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-4 h-48 flex flex-col">
+      <div className="bg-white rounded-lg border border-gray-200 p-4 min-h-[300px] flex flex-col">
         {/* Skeleton pour les labels */}
         <div className="grid mb-3" style={{ gridTemplateColumns: 'repeat(8, minmax(0,1fr))' }}>
           {Array.from({ length: 8 }).map((_, i) => (
@@ -205,7 +205,7 @@ export function ThisYear({ region, status, owner, market }: ThisYearProps) {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="bg-white rounded-lg border border-gray-200 p-4 h-48 flex flex-col">
+      <div className="bg-white rounded-lg border border-gray-200 p-4 min-h-[45vh] flex flex-col">
         {/* Labels et valeurs au-dessus, alignés et proches de la courbe */}
         <div className="grid mb-3" style={{ gridTemplateColumns: `repeat(${displayedStats.length || 1}, minmax(0,1fr))` }}>
           {displayedStats.map((s, i) => (

@@ -1,16 +1,22 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { X, Calendar, ChevronDown, ChevronRight, Filter, Globe } from 'lucide-react'
+import { X, Calendar, ChevronDown, ChevronRight, Filter, Globe, Building2, Target } from 'lucide-react'
 import { MonthPicker } from './month-picker'
 import { useFilters } from '@/contexts/FilterContext'
+import type { FilterState } from '@/contexts/FilterContext'
 
 interface FilterOverlayProps {
   isOpen: boolean
   onClose: () => void
+  markets?: Array<{ id: string; name: string }>
+  scopes?: string[]
+  roles?: string[]
+  hideMonth?: boolean
+  hideRegion?: boolean
 }
 
-export function FilterOverlay({ isOpen, onClose }: FilterOverlayProps) {
+export function FilterOverlay({ isOpen, onClose, markets = [], scopes = [], roles = [], hideMonth = false, hideRegion = false }: FilterOverlayProps) {
   const { filters, appliedFilters, setFilters, setAppliedFilters, resetFilters } = useFilters()
   const [localFilters, setLocalFilters] = useState(filters)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['region','date']))
@@ -19,9 +25,34 @@ export function FilterOverlay({ isOpen, onClose }: FilterOverlayProps) {
   // Réinitialiser les filtres en cours d'édition quand l'overlay s'ouvre
   useEffect(() => {
     if (isOpen) {
-      setLocalFilters(appliedFilters)
+      const filteredFilters: Partial<FilterState> = {}
+      
+      // Copier seulement les propriétés autorisées
+      if (!hideMonth && appliedFilters.selectedMonth) {
+        filteredFilters.selectedMonth = appliedFilters.selectedMonth
+      }
+      if (!hideRegion && appliedFilters.region) {
+        filteredFilters.region = appliedFilters.region
+      }
+      if (appliedFilters.status) {
+        filteredFilters.status = appliedFilters.status
+      }
+      if (appliedFilters.owner) {
+        filteredFilters.owner = appliedFilters.owner
+      }
+      if (appliedFilters.market) {
+        filteredFilters.market = appliedFilters.market
+      }
+      if (appliedFilters.scope) {
+        filteredFilters.scope = appliedFilters.scope
+      }
+      if (appliedFilters.role) {
+        filteredFilters.role = appliedFilters.role
+      }
+      
+      setLocalFilters(filteredFilters as FilterState)
     }
-  }, [isOpen, appliedFilters])
+  }, [isOpen, appliedFilters, hideMonth, hideRegion])
 
   // Gérer le clic en dehors de l'overlay
   useEffect(() => {
@@ -48,6 +79,39 @@ export function FilterOverlay({ isOpen, onClose }: FilterOverlayProps) {
   // Sélection unique de la région
   const handleRegionSelect = (region: 'APAC' | 'EMEA' | 'AMER' | null) => {
     setLocalFilters(prev => ({ ...prev, region: region || undefined }))
+  }
+
+  // Sélection multiple des marchés
+  const handleMarketSelect = (marketId: string) => {
+    setLocalFilters(prev => {
+      const currentMarkets = prev.market || []
+      const newMarkets = currentMarkets.includes(marketId)
+        ? currentMarkets.filter(id => id !== marketId)
+        : [...currentMarkets, marketId]
+      return { ...prev, market: newMarkets }
+    })
+  }
+
+  // Sélection multiple des scopes
+  const handleScopeSelect = (scope: string) => {
+    setLocalFilters(prev => {
+      const currentScopes = prev.scope || []
+      const newScopes = currentScopes.includes(scope)
+        ? currentScopes.filter(s => s !== scope)
+        : [...currentScopes, scope]
+      return { ...prev, scope: newScopes }
+    })
+  }
+
+  // Sélection multiple des rôles
+  const handleRoleSelect = (role: string) => {
+    setLocalFilters(prev => {
+      const currentRoles = prev.role || []
+      const newRoles = currentRoles.includes(role)
+        ? currentRoles.filter(r => r !== role)
+        : [...currentRoles, role]
+      return { ...prev, role: newRoles }
+    })
   }
 
   const toggleSection = (sectionId: string) => {
@@ -107,131 +171,84 @@ export function FilterOverlay({ isOpen, onClose }: FilterOverlayProps) {
         {/* Contenu avec scroll */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-4 space-y-6">
-            {/* Section Region */}
-            <div className="space-y-3">
-              <button
-                onClick={() => toggleSection('region')}
-                className="w-full flex items-center justify-between p-0 text-left hover:bg-transparent transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-gray-500" />
-                  <span className="text-xs font-medium text-gray-900">Region</span>
-                </div>
-                {expandedSections.has('region') ? (
-                  <ChevronDown className="w-3 h-3 text-gray-400" />
-                ) : (
-                  <ChevronRight className="w-3 h-3 text-gray-400" />
-                )}
-              </button>
-
-              {expandedSections.has('region') && (
-                <div className="pl-6">
-                  <div className="flex flex-wrap gap-2">
-                    {(['APAC','EMEA','AMER'] as const).map(option => {
-                      const selected = localFilters.region === option
-                      return (
-                        <button
-                          key={option}
-                          onClick={() => handleRegionSelect(selected ? null : option)}
-                          className={`px-2 py-1 text-xs rounded border transition-colors cursor-pointer ${selected ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
-                        >
-                          {option}
-                        </button>
-                      )
-                    })}
+            {/* Section Region - masquée si hideRegion est true */}
+            {!hideRegion && (
+              <div className="space-y-3">
+                <button
+                  onClick={() => toggleSection('region')}
+                  className="w-full flex items-center justify-between p-0 text-left hover:bg-transparent transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs font-medium text-gray-900">Region</span>
                   </div>
-                </div>
-              )}
-            </div>
+                  {expandedSections.has('region') ? (
+                    <ChevronDown className="w-3 h-3 text-gray-400" />
+                  ) : (
+                    <ChevronRight className="w-3 h-3 text-gray-400" />
+                  )}
+                </button>
 
-            {/* Section Month */}
+                {expandedSections.has('region') && (
+                  <div className="pl-6">
+                    <div className="flex flex-wrap gap-2">
+                      {(['APAC','EMEA','AMER'] as const).map(option => {
+                        const selected = localFilters.region === option
+                        return (
+                          <button
+                            key={option}
+                            onClick={() => handleRegionSelect(selected ? null : option)}
+                            className={`px-2 py-1 text-xs rounded border transition-colors cursor-pointer ${selected ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+                          >
+                            {option}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Section Month - masquée si hideMonth est true */}
+            {!hideMonth && (
+              <div className="space-y-3">
+                <button
+                  onClick={() => toggleSection('date')}
+                  className="w-full flex items-center justify-between p-0 text-left hover:bg-transparent transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs font-medium text-gray-900">Month</span>
+                  </div>
+                  {expandedSections.has('date') ? (
+                    <ChevronDown className="w-3 h-3 text-gray-400" />
+                  ) : (
+                    <ChevronRight className="w-3 h-3 text-gray-400" />
+                  )}
+                </button>
+                
+                {expandedSections.has('date') && (
+                  <div className="pl-6">
+                    <MonthPicker
+                      value={localFilters.selectedMonth}
+                      onChange={handleMonthChange}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Section Market */}
             <div className="space-y-3">
-              <button
-                onClick={() => toggleSection('date')}
-                className="w-full flex items-center justify-between p-0 text-left hover:bg-transparent transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-500" />
-                  <span className="text-xs font-medium text-gray-900">Month</span>
-                </div>
-                {expandedSections.has('date') ? (
-                  <ChevronDown className="w-3 h-3 text-gray-400" />
-                ) : (
-                  <ChevronRight className="w-3 h-3 text-gray-400" />
-                )}
-              </button>
-              
-              {expandedSections.has('date') && (
-                <div className="pl-6">
-                  <MonthPicker
-                    value={localFilters.selectedMonth}
-                    onChange={handleMonthChange}
-                    className="w-full"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Section Status (préparé pour le futur) */}
-            <div className="space-y-3 opacity-50">
-              <button
-                onClick={() => toggleSection('status')}
-                className="w-full flex items-center justify-between p-0 text-left hover:bg-transparent transition-colors cursor-not-allowed"
-                disabled
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gray-300 rounded-full"></div>
-                  <span className="text-xs font-medium text-gray-500">Status</span>
-                </div>
-                {expandedSections.has('status') ? (
-                  <ChevronDown className="w-3 h-3 text-gray-400" />
-                ) : (
-                  <ChevronRight className="w-3 h-3 text-gray-400" />
-                )}
-              </button>
-              
-              {expandedSections.has('status') && (
-                <div className="pl-6">
-                  <p className="text-xs text-gray-500">Coming soon...</p>
-                </div>
-              )}
-            </div>
-
-            {/* Section Owner (préparé pour le futur) */}
-            <div className="space-y-3 opacity-50">
-              <button
-                onClick={() => toggleSection('owner')}
-                className="w-full flex items-center justify-between p-0 text-left hover:bg-transparent transition-colors cursor-not-allowed"
-                disabled
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gray-300 rounded-full"></div>
-                  <span className="text-xs font-medium text-gray-500">Owner</span>
-                </div>
-                {expandedSections.has('owner') ? (
-                  <ChevronDown className="w-3 h-3 text-gray-400" />
-                ) : (
-                  <ChevronRight className="w-3 h-3 text-gray-400" />
-                )}
-              </button>
-              
-              {expandedSections.has('owner') && (
-                <div className="pl-6">
-                  <p className="text-xs text-gray-500">Coming soon...</p>
-                </div>
-              )}
-            </div>
-
-            {/* Section Market (préparé pour le futur) */}
-            <div className="space-y-3 opacity-50">
               <button
                 onClick={() => toggleSection('market')}
-                className="w-full flex items-center justify-between p-0 text-left hover:bg-transparent transition-colors cursor-not-allowed"
-                disabled
+                className="w-full flex items-center justify-between p-0 text-left hover:bg-transparent transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gray-300 rounded-full"></div>
-                  <span className="text-xs font-medium text-gray-500">Market</span>
+                  <Building2 className="w-4 h-4 text-gray-500" />
+                  <span className="text-xs font-medium text-gray-900">Market</span>
                 </div>
                 {expandedSections.has('market') ? (
                   <ChevronDown className="w-3 h-3 text-gray-400" />
@@ -242,7 +259,94 @@ export function FilterOverlay({ isOpen, onClose }: FilterOverlayProps) {
               
               {expandedSections.has('market') && (
                 <div className="pl-6">
-                  <p className="text-xs text-gray-500">Coming soon...</p>
+                  <div className="flex flex-wrap gap-2">
+                    {markets.map((market) => {
+                      const selected = (localFilters.market || []).includes(market.id)
+                      return (
+                        <button
+                          key={market.id}
+                          onClick={() => handleMarketSelect(market.id)}
+                          className={`px-2 py-1 text-xs rounded border transition-colors cursor-pointer ${selected ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+                        >
+                          {market.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Section Scope */}
+            <div className="space-y-3">
+              <button
+                onClick={() => toggleSection('scope')}
+                className="w-full flex items-center justify-between p-0 text-left hover:bg-transparent transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-gray-500" />
+                  <span className="text-xs font-medium text-gray-900">Scope</span>
+                </div>
+                {expandedSections.has('scope') ? (
+                  <ChevronDown className="w-3 h-3 text-gray-400" />
+                ) : (
+                  <ChevronRight className="w-3 h-3 text-gray-400" />
+                )}
+              </button>
+              
+              {expandedSections.has('scope') && (
+                <div className="pl-6">
+                  <div className="flex flex-wrap gap-2">
+                    {scopes.map((scope) => {
+                      const selected = (localFilters.scope || []).includes(scope)
+                      return (
+                        <button
+                          key={scope}
+                          onClick={() => handleScopeSelect(scope)}
+                          className={`px-2 py-1 text-xs rounded border transition-colors cursor-pointer ${selected ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+                        >
+                          {scope}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Section Role */}
+            <div className="space-y-3">
+              <button
+                onClick={() => toggleSection('role')}
+                className="w-full flex items-center justify-between p-0 text-left hover:bg-transparent transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-gray-300 rounded-full"></div>
+                  <span className="text-xs font-medium text-gray-900">Role</span>
+                </div>
+                {expandedSections.has('role') ? (
+                  <ChevronDown className="w-3 h-3 text-gray-400" />
+                ) : (
+                  <ChevronRight className="w-3 h-3 text-gray-400" />
+                )}
+              </button>
+              
+              {expandedSections.has('role') && (
+                <div className="pl-6">
+                  <div className="flex flex-wrap gap-2">
+                    {roles.map((role) => {
+                      const selected = (localFilters.role || []).includes(role)
+                      return (
+                        <button
+                          key={role}
+                          onClick={() => handleRoleSelect(role)}
+                          className={`px-2 py-1 text-xs rounded border transition-colors cursor-pointer ${selected ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+                        >
+                          {role}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>

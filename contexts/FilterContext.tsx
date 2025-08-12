@@ -8,6 +8,8 @@ export interface FilterState {
   owner?: string[]
   market?: string[]
   region?: string // APAC | EMEA | AMER
+  scope?: string[]
+  role?: string[]
 }
 
 interface FilterContextType {

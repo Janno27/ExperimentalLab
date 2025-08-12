@@ -1,50 +1,103 @@
 // Point d'entrée pour les features Kanban
-import { useState, useMemo } from "react"
-import { FilterBar } from "./filter-bar"
+import { useMemo } from "react"
 import { KanbanBoard } from "./KanbanBoard"
+import { KanbanSkeleton } from "./KanbanSkeleton"
 import { useExperimentation, MarketRef } from "@/hooks/useExperimentation"
+import { useFilters } from '@/contexts/FilterContext'
 
-export default function Kanban() {
+interface KanbanProps {
+  searchValue?: string
+}
+
+export default function Kanban({ searchValue = "" }: KanbanProps) {
   const result = useExperimentation({ 
     useAirtable: true, 
     timelineMode: false 
   })
   
+  const { appliedFilters } = useFilters()
+  
   // Extraire les données avec des valeurs par défaut
   const { 
     columns = [], 
     cards = [], 
-    markets = [], 
-    roles = [], 
-    scopes = [], 
     kpis = [], 
     pages = [], 
     products = [], 
     loading = false, 
     error = null 
   } = result
-  
-  const [filters, setFilters] = useState({ market: '', role: '', scope: '', search: '' })
 
   const filteredCards = useMemo(() => {
     return cards.filter(card => {
-      if (filters.market && !card.market.some((m: MarketRef) => m.id === filters.market)) return false
-      if (filters.role && card.role !== filters.role) return false
-      if (filters.scope && card.scope !== filters.scope) return false
-      if (filters.search && !card.name.toLowerCase().includes(filters.search.toLowerCase())) return false
+      // Filtre par recherche (nom, description, etc.)
+      if (searchValue && searchValue.trim() !== "") {
+        const searchLower = searchValue.toLowerCase()
+        const cardName = (card.name || card.Name || "").toLowerCase()
+        const cardDescription = (card.description || card.Description || "").toLowerCase()
+        const cardScope = (card.scope || "").toLowerCase()
+        
+        if (!cardName.includes(searchLower) && 
+            !cardDescription.includes(searchLower) && 
+            !cardScope.includes(searchLower)) {
+          return false
+        }
+      }
+      
+      // Filtre par market
+      if (appliedFilters.market && appliedFilters.market.length > 0) {
+        const cardMarkets = card.market || []
+        if (!appliedFilters.market.some(filterMarket => 
+          cardMarkets.some((m: MarketRef) => m.id === filterMarket)
+        )) {
+          return false
+        }
+      }
+      
+      // Filtre par role
+      if (appliedFilters.role && appliedFilters.role.length > 0) {
+        if (!card.role || !appliedFilters.role.includes(card.role)) {
+          return false
+        }
+      }
+      
+      // Filtre par scope
+      if (appliedFilters.scope && appliedFilters.scope.length > 0) {
+        if (!card.scope || !appliedFilters.scope.includes(card.scope)) {
+          return false
+        }
+      }
+      
+      // Filtre par status
+      if (appliedFilters.status && appliedFilters.status.length > 0) {
+        if (!appliedFilters.status.includes(card.status)) {
+          return false
+        }
+      }
+      
+      // Filtre par owner
+      if (appliedFilters.owner && appliedFilters.owner.length > 0) {
+        const cardOwners = card.owner || []
+        if (!appliedFilters.owner.some(filterOwner => 
+          cardOwners.some((o: { id?: string; name?: string }) => {
+            const ownerName = typeof o === 'string' ? o : o?.name
+            return ownerName === filterOwner
+          })
+        )) {
+          return false
+        }
+      }
+      
+      // Note: Les filtres Month et Region sont intentionnellement ignorés pour la page Kanban
+      // même s'ils sont présents dans le localStorage
+      
       return true
     })
-  }, [cards, filters])
+  }, [cards, appliedFilters, searchValue])
 
   return (
-    <div className="p-4">
-      <FilterBar
-        markets={markets}
-        roles={roles}
-        scopes={scopes}
-        onFilterChange={setFilters}
-      />
-      {loading && <div className="text-center text-zinc-400 py-8">Loading...</div>}
+    <div className="p-2">
+      {loading && <KanbanSkeleton />}
       {error && <div className="text-center text-red-500 py-8">{error}</div>}
       {!loading && !error && <KanbanBoard cards={filteredCards} columns={columns} kpis={kpis} pages={pages} products={products} />}
     </div>

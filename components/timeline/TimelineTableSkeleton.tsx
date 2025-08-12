@@ -69,8 +69,22 @@ export function TimelineTableSkeleton() {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-1">
-                    <Skeleton className="h-3 w-3 rounded-full animate-pulse" />
-                    <Skeleton className="h-4 w-16 animate-pulse" />
+                    {/* Status avec couleur subtile basée sur le type */}
+                    <div className="h-4 w-16 rounded-full animate-pulse" 
+                         style={{
+                           backgroundColor: (() => {
+                             const statusColors = [
+                               'rgb(219, 234, 254)', // bg-blue-100 - Open, Refinement
+                               'rgb(220, 252, 231)', // bg-green-100 - Running, Ready for Analysis
+                               'rgb(243, 232, 255)', // bg-purple-100 - Design & Development
+                               'rgb(255, 237, 213)', // bg-orange-100 - Setup
+                               'rgb(243, 244, 246)', // bg-gray-100 - Done, Non Conclusive
+                               'rgb(254, 226, 226)'  // bg-red-100 - Denied
+                             ]
+                             return statusColors[Math.floor(Math.random() * statusColors.length)]
+                           })()
+                         }}
+                    />
                   </div>
                 </td>
                 <td className="px-6 py-4">

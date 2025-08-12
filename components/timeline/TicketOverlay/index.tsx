@@ -293,12 +293,6 @@ export function TicketOverlay({ project, isOpen, onClose, onDataRefresh }: Ticke
                 onToggleExpanded={() => setPropertiesExpanded(!propertiesExpanded)}
                 canEdit={canEdit()}
                 canView={canView()}
-                onDataRefresh={onDataRefresh}
-                onLocalRefresh={async () => {
-                  if (currentProject) {
-                    await loadLatestProjectData(currentProject.id)
-                  }
-                }}
               />
 
               {/* Section Timeline */}
@@ -345,12 +339,6 @@ export function TicketOverlay({ project, isOpen, onClose, onDataRefresh }: Ticke
                 onToggleExpanded={() => setDescriptionExpanded(!descriptionExpanded)}
                 canEdit={canEdit()}
                 canView={canView()}
-                onDataRefresh={onDataRefresh}
-                onLocalRefresh={async () => {
-                  if (currentProject) {
-                    await loadLatestProjectData(currentProject.id)
-                  }
-                }}
               />
 
               {/* Section Results */}
@@ -362,11 +350,6 @@ export function TicketOverlay({ project, isOpen, onClose, onDataRefresh }: Ticke
                 onDataRefresh={onDataRefresh}
                 canEdit={canEdit()}
                 canView={canView()}
-                onLocalRefresh={async () => {
-                  if (currentProject) {
-                    await loadLatestProjectData(currentProject.id)
-                  }
-                }}
               />
 
               {/* CTA discret pour marquer comme Done */}

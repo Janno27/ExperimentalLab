@@ -55,6 +55,7 @@ export interface Project {
   metThreshold2?: any
   metThreshold3?: any
   // Nouveaux champs pour les résultats
+  resultsDeepdive?: any
   learnings?: string
   nextSteps?: string
   conclusive?: string
@@ -344,6 +345,7 @@ export function useExperimentation(options: {
           const metThreshold3 = record.fields['Met Threshold - Success Criteria #3'] || null
           
           // Nouveaux champs pour les résultats
+          const resultsDeepdive = record.fields['Results - Deepdive'] || null
           const learnings = record.fields['Learnings'] as string || ""
           const nextSteps = record.fields['Next Steps'] as string || ""
           
@@ -455,6 +457,7 @@ export function useExperimentation(options: {
             metThreshold1,
             metThreshold2,
             metThreshold3,
+            resultsDeepdive,
             learnings,
             nextSteps,
             conclusive,

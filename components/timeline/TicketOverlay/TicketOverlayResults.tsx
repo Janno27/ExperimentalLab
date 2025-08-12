@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { ChevronDown, ChevronRight, Check, CheckCircle, Edit2, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, Check, CheckCircle, Edit2, X, Eye, EyeOff, Upload, Trash2 } from 'lucide-react'
 import { Project } from '@/hooks/useExperimentation'
-import { updateExperimentationFields } from '@/lib/airtable'
+import { updateExperimentationFields, updateAnalysisFile, deleteAnalysisFile } from '@/lib/airtable'
 import { toast } from 'sonner'
+import { PDFViewer } from '@/components/ui/pdf-viewer'
+import { uploadAnalysisFile } from '@/lib/supabase'
 
 interface TicketOverlayResultsProps {
   project: Project
@@ -12,10 +14,9 @@ interface TicketOverlayResultsProps {
   onDataRefresh?: () => Promise<void>
   canEdit: boolean
   canView: boolean
-  onLocalRefresh?: () => Promise<void> | void
 }
 
-export function TicketOverlayResults({ project, expanded, onToggleExpanded, onConfetti, onDataRefresh, canEdit, onLocalRefresh }: TicketOverlayResultsProps) {
+export function TicketOverlayResults({ project, expanded, onToggleExpanded, onConfetti, onDataRefresh, canEdit }: TicketOverlayResultsProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   
@@ -35,6 +36,7 @@ export function TicketOverlayResults({ project, expanded, onToggleExpanded, onCo
   const [loading3, setLoading3] = useState(false)
   
   // États pour les champs OUTCOMES (modifiables par défaut)
+  const [resultsDeepdive, setResultsDeepdive] = useState(project.resultsDeepdive || null)
   const [learnings, setLearnings] = useState(project.learnings || '')
   const [nextSteps, setNextSteps] = useState(project.nextSteps || '')
 
@@ -45,6 +47,11 @@ export function TicketOverlayResults({ project, expanded, onToggleExpanded, onCo
   const [showDropdown, setShowDropdown] = useState(false)
   const [activeDropdown, setActiveDropdown] = useState<'conclusive' | 'winLoss' | null>(null)
   const [markAsDoneLoading, setMarkAsDoneLoading] = useState(false)
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false)
+  const [previewExpanded, setPreviewExpanded] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   const conclusiveDropdownRef = useRef<HTMLDivElement>(null)
   const winLossDropdownRef = useRef<HTMLDivElement>(null)
@@ -80,6 +87,26 @@ export function TicketOverlayResults({ project, expanded, onToggleExpanded, onCo
     setMetThreshold1(getMetThresholdValue(project.metThreshold1))
     setMetThreshold2(getMetThresholdValue(project.metThreshold2))
     setMetThreshold3(getMetThresholdValue(project.metThreshold3))
+    
+    // Gérer les données d'analyse avec le bon format
+    if (project.resultsDeepdive) {
+      if (Array.isArray(project.resultsDeepdive) && project.resultsDeepdive.length > 0) {
+        // Format Airtable : tableau d'objets avec url et filename
+        const analysisData = project.resultsDeepdive[0]
+        setResultsDeepdive([{
+          url: analysisData.url,
+          name: analysisData.filename || analysisData.name || 'Analysis Document',
+          type: analysisData.type || 'application/pdf',
+          size: analysisData.size
+        }])
+      } else {
+        // Format direct : objet simple
+        setResultsDeepdive([project.resultsDeepdive])
+      }
+    } else {
+      setResultsDeepdive(null)
+    }
+    
     setLearnings(project.learnings || '')
     setNextSteps(project.nextSteps || '')
     setConclusive(project.conclusive || '')
@@ -92,6 +119,67 @@ export function TicketOverlayResults({ project, expanded, onToggleExpanded, onCo
     setEditedLearnings(project.learnings || '')
     setEditedNextSteps(project.nextSteps || '')
   }, [project]) // Se déclencher quand le projet entier change
+
+
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      try {
+        // Upload vers Supabase Storage
+        const result = await uploadAnalysisFile(file, project.title)
+        
+        if (result.success && result.url) {
+          // Mettre à jour Airtable avec l'URL
+          await updateAnalysisFile(project.id, result.url, result.fileName || file.name)
+          
+          // Mettre à jour l'état local avec le bon format
+          const newAnalysisFile = {
+            url: result.url,
+            name: result.fileName || file.name,
+            type: file.type,
+            size: file.size
+          }
+          setResultsDeepdive([newAnalysisFile])
+          
+          toast.success('Analysis uploaded successfully!')
+        } else {
+          toast.error(result.error || 'Upload failed')
+        }
+      } catch (error) {
+        console.error('Error uploading file:', error)
+        toast.error(error instanceof Error ? error.message : 'Upload failed')
+      }
+    }
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleDeleteAnalysis = async () => {
+    if (!canEdit) return
+    
+    setIsDeleting(true)
+    try {
+      await deleteAnalysisFile(project.id)
+      
+      // Mettre à jour l'état local
+      setResultsDeepdive(null)
+      setShowDeleteConfirm(false)
+      
+      toast.success('Analysis deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting analysis:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to delete analysis')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   // Fermer le dropdown au clic extérieur
   useEffect(() => {
@@ -138,13 +226,22 @@ export function TicketOverlayResults({ project, expanded, onToggleExpanded, onCo
 
       if (Object.keys(fieldsToUpdate).length > 0) {
         await updateExperimentationFields(project.id, fieldsToUpdate)
+        
+        // Mise à jour immédiate de l'état local (stratégie de synchronisation)
+        // Les critères de succès sont déjà affichés depuis editedSuccessCriteria*, donc pas besoin de mise à jour locale
+        if (editedLearnings !== project.learnings) {
+          setLearnings(editedLearnings || '')
+        }
+        if (editedNextSteps !== project.nextSteps) {
+          setNextSteps(editedNextSteps || '')
+        }
+        
         toast.success('Results updated successfully!')
         setIsEditing(false)
         
-
-        
-        if (onLocalRefresh) await onLocalRefresh()
-        if (onDataRefresh) await onDataRefresh()
+        // Pas de rafraîchissement automatique pour éviter d'écraser l'état local
+        // if (onLocalRefresh) await onLocalRefresh()
+        // if (onDataRefresh) await onDataRefresh()
       }
     } catch (error) {
       toast.error('Failed to update results.')
@@ -405,7 +502,7 @@ export function TicketOverlayResults({ project, expanded, onToggleExpanded, onCo
                   />
                 ) : (
                   <div className={`text-xs pl-1 ${metThreshold1 ? 'text-green-600' : 'text-gray-600'}`}>
-                    {project.successCriteria1 || '-'}
+                    {editedSuccessCriteria1 || '-'}
                   </div>
                 )}
               </div>
@@ -445,7 +542,7 @@ export function TicketOverlayResults({ project, expanded, onToggleExpanded, onCo
                   />
                 ) : (
                   <div className={`text-xs pl-1 ${metThreshold2 ? 'text-green-600' : 'text-gray-600'}`}>
-                    {project.successCriteria2 || '-'}
+                    {editedSuccessCriteria2 || '-'}
                   </div>
                 )}
               </div>
@@ -485,7 +582,7 @@ export function TicketOverlayResults({ project, expanded, onToggleExpanded, onCo
                   />
                 ) : (
                   <div className={`text-xs pl-1 ${metThreshold3 ? 'text-green-600' : 'text-gray-600'}`}>
-                    {project.successCriteria3 || '-'}
+                    {editedSuccessCriteria3 || '-'}
                   </div>
                 )}
               </div>
@@ -494,6 +591,122 @@ export function TicketOverlayResults({ project, expanded, onToggleExpanded, onCo
 
           {/* Separator - only show if we have both checkboxes and learnings/next steps */}
           {canShowCheckboxes && canShowLearningsAndNextSteps && (
+            <div className="border-t border-gray-200 my-4"></div>
+          )}
+
+          {/* ANALYSIS FILE */}
+          {canShowLearningsAndNextSteps && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-medium text-gray-700">ANALYSIS</div>
+                {resultsDeepdive ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPreviewExpanded(!previewExpanded)}
+                      className="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1 cursor-pointer"
+                    >
+                      {previewExpanded ? (
+                        <>
+                          <EyeOff className="w-3 h-3" />
+                          Hide Preview
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-3 h-3" />
+                          Show Preview
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setPdfViewerOpen(true)}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium cursor-pointer flex items-center gap-1"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      Open Full
+                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        disabled={isDeleting}
+                        className="text-xs text-red-600 hover:text-red-800 font-medium cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                ) : canEdit && (
+                  <button
+                    onClick={triggerFileSelect}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium cursor-pointer flex items-center gap-1"
+                  >
+                    <Upload className="w-3 h-3" />
+                    Upload Analysis
+                  </button>
+                )}
+              </div>
+              
+              {resultsDeepdive && Array.isArray(resultsDeepdive) && resultsDeepdive.length > 0 && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                  {previewExpanded ? (
+                    /* Aperçu PDF déployé */
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <iframe
+                          src={`${resultsDeepdive[0].url}#page=1&toolbar=0&navpanes=0&scrollbar=0`}
+                          className="w-full aspect-square border border-gray-200 rounded"
+                          title="PDF Preview"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    /* Miniature compacte */
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-xs font-medium text-gray-900">
+                          Deepdive Analysis Document
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Click &quot;Show Preview&quot; to view the document
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+
+              {/* Message when no analysis */}
+              {(!resultsDeepdive || (Array.isArray(resultsDeepdive) && resultsDeepdive.length === 0)) && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                  <div className="text-xs text-gray-500">
+                    {canEdit 
+                      ? 'No analysis uploaded. Click &quot;Upload Analysis&quot; to add a file.'
+                      : 'No analysis available for this project.'
+                    }
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Separator - only show if we have results deepdive and learnings */}
+          {canShowLearningsAndNextSteps && resultsDeepdive && (
             <div className="border-t border-gray-200 my-4"></div>
           )}
 
@@ -691,6 +904,61 @@ export function TicketOverlayResults({ project, expanded, onToggleExpanded, onCo
               <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] max-w-sm break-words">
                 {getMarkAsDoneTooltip()}
                 <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PDF Viewer Overlay */}
+      {Array.isArray(resultsDeepdive) && resultsDeepdive.length > 0 && resultsDeepdive[0].url && (
+        <PDFViewer
+          isOpen={pdfViewerOpen}
+          onClose={() => setPdfViewerOpen(false)}
+          pdfUrl={resultsDeepdive[0].url}
+          title="Deepdive Analysis Document"
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <Trash2 className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Delete Analysis
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Are you sure you want to delete this analysis file? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAnalysis}
+                  disabled={isDeleting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isDeleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
