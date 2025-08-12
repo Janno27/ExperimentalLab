@@ -4,6 +4,10 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { Separator } from "@/components/ui/separator"
 import { SearchBar } from "@/components/ui/searchBar"
 import { MultiStepForm } from "@/components/multi-step-form"
+import { ThisMonth } from "@/components/dashboard/this-month"
+
+import { FilterOverlay } from "@/components/dashboard/filter-overlay"
+import { Switch } from "@/components/ui/switch"
 import {
   SidebarInset,
   SidebarProvider,
@@ -12,6 +16,12 @@ import {
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { NotificationPopover } from "@/components/notification/notification-popover"
+import { useFilters } from '@/contexts/FilterContext'
+
+import { Button } from "@/components/ui/button"
+
+import { ThisYear } from "@/components/dashboard/this-year"
+import { FilteredBadge } from "@/components/ui/filtered-badge"
 
 export default function Page() {
   const currentDate = new Date().toLocaleDateString('en-US', {
@@ -20,7 +30,28 @@ export default function Page() {
     day: 'numeric'
   })
 
+  const { appliedFilters } = useFilters()
   const [firstName, setFirstName] = useState('')
+  const [showComparison, setShowComparison] = useState(false)
+  const [isFilterOverlayOpen, setIsFilterOverlayOpen] = useState(false)
+
+  // Compter et vérifier les filtres actifs
+  const getActiveFiltersCount = () => {
+    const defaultMonth = new Date()
+    const isDefaultMonth = appliedFilters.selectedMonth.getMonth() === defaultMonth.getMonth() &&
+      appliedFilters.selectedMonth.getFullYear() === defaultMonth.getFullYear()
+
+    let count = 0
+    if (!isDefaultMonth) count++
+    if (appliedFilters.status && appliedFilters.status.length > 0) count++
+    if (appliedFilters.owner && appliedFilters.owner.length > 0) count++
+    if (appliedFilters.market && appliedFilters.market.length > 0) count++
+    if (appliedFilters.region) count++
+
+    return count
+  }
+
+  const hasActiveFilters = () => getActiveFiltersCount() > 0
 
   useEffect(() => {
     async function fetchProfile() {
@@ -40,7 +71,7 @@ export default function Page() {
   }, [])
 
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2">
@@ -58,33 +89,119 @@ export default function Page() {
               />
             </div>
           </div>
-          {/* Icône notification à droite */}
+          {/* Bouton Filters et icône notification à droite */}
           <div className="flex items-center gap-2 pr-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsFilterOverlayOpen(true)}
+              className="relative text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 h-6 px-2 cursor-pointer transition-all duration-200 hover:scale-105"
+            >
+              Filter
+              {getActiveFiltersCount() > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-purple-600 text-white text-[10px] leading-none">
+                  {getActiveFiltersCount()}
+                </span>
+              )}
+            </Button>
             <NotificationPopover />
           </div>
         </header>
         
-        {/* Message d'accueil centré */}
+        {/* Message d'accueil centré avec MonthPicker */}
         <div className="flex flex-col items-center pt-8 pb-4">
           <p className="text-sm text-gray-500 mb-2 font-light">
             {currentDate}
           </p>
-          <h1 className="text-4xl font-light tracking-wide text-gray-700">
-            {firstName ? `Hello, ${firstName} 👋` : 'Hello! 👋'}
-          </h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-4xl font-light tracking-wide text-gray-700">
+              {firstName ? `Hello, ${firstName} 👋` : 'Hello! 👋'}
+            </h1>
+
+          </div>
         </div>
         
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-            <div className="bg-muted/50 aspect-video rounded-xl" />
-            <div className="bg-muted/50 aspect-video rounded-xl" />
-            <div className="bg-muted/50 aspect-video rounded-xl" />
+        {/* Grille dashboard simple */}
+        <div className="flex flex-1 flex-col p-4 pt-0">
+          <div className="space-y-4">
+            {/* This Month */}
+            <div className="w-1/3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-medium text-gray-500">This month</h3>
+                  {hasActiveFilters() && (
+                    <FilteredBadge filters={{
+                      status: appliedFilters.status,
+                      owner: appliedFilters.owner,
+                      market: appliedFilters.market,
+                      region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
+                      selectedMonth: appliedFilters.selectedMonth
+                    }} />
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-500">Compare</span>
+                  <Switch
+                    checked={showComparison}
+                    onCheckedChange={setShowComparison}
+                    className="scale-75"
+                  />
+                </div>
+              </div>
+              <ThisMonth 
+                showComparison={showComparison} 
+                selectedMonth={appliedFilters.selectedMonth} 
+                region={appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined}
+                status={appliedFilters.status}
+                owner={appliedFilters.owner}
+                market={appliedFilters.market}
+              />
+            </div>
+
+            {/* This Year */}
+            <div className="w-1/2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-medium text-gray-500">This year</h3>
+                  {(() => {
+                    const hasActiveFilters = (appliedFilters.status && appliedFilters.status.length > 0) || 
+                                          (appliedFilters.owner && appliedFilters.owner.length > 0) || 
+                                          (appliedFilters.market && appliedFilters.market.length > 0) || 
+                                          appliedFilters.region
+                    return hasActiveFilters && (
+                      <FilteredBadge 
+                        filters={{
+                          status: appliedFilters.status,
+                          owner: appliedFilters.owner,
+                          market: appliedFilters.market,
+                          region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
+                          selectedMonth: appliedFilters.selectedMonth
+                        }}
+                        excludeMonth={true}
+                      />
+                    )
+                  })()}
+                </div>
+                <span className="text-[10px] text-gray-400">Done per month</span>
+              </div>
+              <ThisYear 
+                region={appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined}
+                status={appliedFilters.status}
+                owner={appliedFilters.owner}
+                market={appliedFilters.market}
+              />
+            </div>
           </div>
-          <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min" />
         </div>
 
         {/* Multi-step form modal */}
         <MultiStepForm />
+        
+        {/* Filter Overlay */}
+        <FilterOverlay
+          isOpen={isFilterOverlayOpen}
+          onClose={() => setIsFilterOverlayOpen(false)}
+        />
       </SidebarInset>
     </SidebarProvider>
   )

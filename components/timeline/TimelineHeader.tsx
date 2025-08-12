@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { TimelineData } from "./hooks/useTimelineData"
+import { TimelineData } from "@/hooks/useExperimentation"
 
 interface TimelineHeaderProps {
   data: TimelineData

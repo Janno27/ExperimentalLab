@@ -2,10 +2,28 @@
 import { useState, useMemo } from "react"
 import { FilterBar } from "./filter-bar"
 import { KanbanBoard } from "./KanbanBoard"
-import { useExperimentations, MarketRef } from "@/hooks/useExperimentations"
+import { useExperimentation, MarketRef } from "@/hooks/useExperimentation"
 
 export default function Kanban() {
-  const { columns, cards, markets, roles, scopes, kpis, pages, products, loading, error } = useExperimentations({ useAirtable: true })
+  const result = useExperimentation({ 
+    useAirtable: true, 
+    timelineMode: false 
+  })
+  
+  // Extraire les données avec des valeurs par défaut
+  const { 
+    columns = [], 
+    cards = [], 
+    markets = [], 
+    roles = [], 
+    scopes = [], 
+    kpis = [], 
+    pages = [], 
+    products = [], 
+    loading = false, 
+    error = null 
+  } = result
+  
   const [filters, setFilters] = useState({ market: '', role: '', scope: '', search: '' })
 
   const filteredCards = useMemo(() => {

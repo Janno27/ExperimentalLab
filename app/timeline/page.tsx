@@ -18,26 +18,52 @@ import {
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { TimelineView, TimelineViewRef } from "@/components/timeline"
 import { TimelineControls } from "@/components/timeline/TimelineControls"
-import { Button } from "@/components/ui/button"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 
 export default function Page() {
-  const [currentView, setCurrentView] = useState<'week' | 'month' | 'quarter' | 'year'>('month')
+  const searchParams = useSearchParams()
+  const [currentView, setCurrentView] = useState<'week' | 'month' | 'quarter' | 'year'>('year')
   const [activeTab, setActiveTab] = useState('live-test')
+  const [activeView, setActiveView] = useState<'timeline' | 'table'>('timeline')
+  const [searchValue, setSearchValue] = useState("")
   const timelineViewRef = useRef<TimelineViewRef | null>(null)
+  const marketOverviewTimelineRef = useRef<TimelineViewRef | null>(null)
+  const completedTestTimelineRef = useRef<TimelineViewRef | null>(null)
+
+  // Gérer les paramètres d'URL pour ouvrir directement le bon tab
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam && ['live-test', 'market-overview', 'completed-test'].includes(tabParam)) {
+      setActiveTab(tabParam)
+    }
+  }, [searchParams])
 
   const handleViewChange = (view: 'week' | 'month' | 'quarter' | 'year') => {
     setCurrentView(view)
   }
 
-  const handleScrollToToday = () => {
-    if (timelineViewRef.current) {
-      timelineViewRef.current.scrollToToday()
-    }
+
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab)
+    // Mettre à jour l'URL sans recharger la page
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', tab)
+    window.history.pushState({}, '', url.toString())
+  }
+
+  const handleViewTypeChange = (viewType: 'timeline' | 'table') => {
+    setActiveView(viewType)
+  }
+
+  const handleSearch = (value: string) => {
+    setSearchValue(value)
+    // La recherche sera gérée par les composants TimelineView
   }
 
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider>
       <AppSidebar />
       <SidebarInset className="max-w-full overflow-hidden">
         <header className="flex h-16 shrink-0 items-center gap-2">
@@ -59,34 +85,6 @@ export default function Page() {
               </BreadcrumbList>
             </Breadcrumb>
           </div>
-          <div className="flex-1 flex justify-end pr-4">
-            <div className="flex items-center gap-0.5 bg-gray-200 rounded-2xl p-0.5">
-              <Button
-                variant={activeTab === 'live-test' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveTab('live-test')}
-                className={`rounded-xl text-xs h-7 px-3 cursor-pointer ${activeTab !== 'live-test' ? 'hover:bg-gray-100' : ''}`}
-              >
-                Live Test
-              </Button>
-              <Button
-                variant={activeTab === 'market-overview' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveTab('market-overview')}
-                className={`rounded-xl text-xs h-7 px-3 cursor-pointer ${activeTab !== 'market-overview' ? 'hover:bg-gray-100' : ''}`}
-              >
-                Market Overview
-              </Button>
-              <Button
-                variant={activeTab === 'completed-test' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveTab('completed-test')}
-                className={`rounded-xl text-xs h-7 px-3 cursor-pointer ${activeTab !== 'completed-test' ? 'hover:bg-gray-100' : ''}`}
-              >
-                Completed Test
-              </Button>
-            </div>
-          </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0 overflow-hidden">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full overflow-hidden flex-1 flex flex-col">
@@ -94,21 +92,41 @@ export default function Page() {
             <TimelineControls
               currentView={currentView}
               onViewChange={handleViewChange}
-              onScrollToToday={handleScrollToToday}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              activeView={activeView}
+              onViewTypeChange={handleViewTypeChange}
+              onSearch={handleSearch}
             />
             
             <TabsContent value="live-test" className="mt-0 overflow-hidden flex-1 flex flex-col">
               <div className="w-full h-[80vh] overflow-hidden flex flex-col">
-                <TimelineView ref={timelineViewRef} currentView={currentView} />
+                <TimelineView ref={timelineViewRef} currentView={currentView} activeView={activeView} searchValue={searchValue} />
               </div>
             </TabsContent>
-            <TabsContent value="market-overview" className="mt-0">
-              {/* Contenu vide pour Market Overview */}
+            <TabsContent value="market-overview" className="mt-0 overflow-hidden flex-1 flex flex-col">
+              <div className="w-full h-[80vh] overflow-hidden flex flex-col">
+                <TimelineView 
+                  ref={marketOverviewTimelineRef} 
+                  currentView={currentView} 
+                  activeView={activeView}
+                  validStatuses={["Refinement", "Design & Development", "Setup", "Running", "Ready for Analysis", "Analysing", "Open", "Done"]}
+                  searchValue={searchValue}
+                  requireDoneDate={false}
+                />
+              </div>
             </TabsContent>
-            <TabsContent value="completed-test" className="mt-0 overflow-hidden flex-1 flex flex-col bg-white">
-              <div className="w-full overflow-hidden flex-1 flex flex-col">
-                {/* Timeline principale pour Completed Test */}
-                <TimelineView ref={timelineViewRef} currentView={currentView} />
+            <TabsContent value="completed-test" className="mt-0 overflow-hidden flex-1 flex flex-col">
+              <div className="w-full h-[80vh] overflow-hidden flex flex-col">
+                <TimelineView 
+                  ref={completedTestTimelineRef} 
+                  currentView={currentView} 
+                  activeView={activeView} 
+                  validStatuses={["Done"]}
+                  searchValue={searchValue}
+                  groupBy="conclusive"
+                  requireDoneDate={true}
+                />
               </div>
             </TabsContent>
           </Tabs>

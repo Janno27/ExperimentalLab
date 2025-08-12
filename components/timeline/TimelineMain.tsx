@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useEffect, forwardRef, useImperativeHandle, useCallback } from "react"
-import { TimelineData } from "./hooks/useTimelineData"
+import { TimelineData, Project } from "@/hooks/useExperimentation"
 import { TimelineHeader } from "./TimelineHeader"
 import { TimelineContent } from "./TimelineContent"
 
@@ -9,14 +9,17 @@ interface TimelineMainProps {
   data: TimelineData
   currentView: 'week' | 'month' | 'quarter' | 'year'
   onScrollChange?: (scrollTop: number) => void
+  onProjectClick?: (project: Project) => void
+  groupBy?: 'country' | 'conclusive'
 }
 
 export interface TimelineMainRef {
   scrollToToday: () => void
+  scrollToVertical: (scrollTop: number) => void
 }
 
 export const TimelineMain = forwardRef<TimelineMainRef, TimelineMainProps>(
-  ({ data, currentView, onScrollChange }, ref) => {
+  ({ data, currentView, onScrollChange, onProjectClick, groupBy = 'country' }, ref) => {
     const scrollContainerRef = useRef<HTMLDivElement>(null)
     const headerScrollRef = useRef<HTMLDivElement>(null)
     const lastScrollPositionRef = useRef<number>(0)
@@ -42,13 +45,6 @@ export const TimelineMain = forwardRef<TimelineMainRef, TimelineMainProps>(
 
     // NOUVELLE FONCTION scrollToToday complètement refaite
     const scrollToToday = useCallback(() => {
-      console.log('scrollToToday called - NOUVELLE VERSION', { 
-        todayIndex: data.timeline.todayIndex, 
-        daysLength: data.timeline.days.length,
-        dayWidth,
-        currentView
-      })
-      
       if (data.timeline.todayIndex >= 0 && data.timeline.days.length > 0) {
         const scrollContainer = scrollContainerRef.current
         const headerScroll = headerScrollRef.current
@@ -65,14 +61,6 @@ export const TimelineMain = forwardRef<TimelineMainRef, TimelineMainProps>(
           // Calculer la position de scroll pour centrer parfaitement la date du jour
           const scrollPosition = Math.max(0, todayPosition - (availableWidth / 2))
           
-          console.log('NOUVELLE scrollToToday:', {
-            todayPosition,
-            availableWidth,
-            scrollPosition,
-            containerWidth,
-            sidebarWidth
-          })
-          
           // Appliquer le scroll avec animation fluide aux deux conteneurs
           scrollContainer.scrollTo({
             left: scrollPosition,
@@ -88,7 +76,7 @@ export const TimelineMain = forwardRef<TimelineMainRef, TimelineMainProps>(
           lastDayIndexRef.current = data.timeline.todayIndex
         }
       }
-    }, [data.timeline.todayIndex, data.timeline.days.length, dayWidth, currentView])
+    }, [data.timeline.todayIndex, data.timeline.days.length, dayWidth])
 
     // Fonction pour maintenir la position lors des changements de vue
     const maintainScrollPosition = useCallback(() => {
@@ -106,12 +94,6 @@ export const TimelineMain = forwardRef<TimelineMainRef, TimelineMainProps>(
         
         // Mettre à jour la position sauvegardée
         lastScrollPositionRef.current = newPosition
-        
-        console.log('Position maintenue:', {
-          targetDayIndex,
-          newDayWidth: dayWidth,
-          newPosition
-        })
       }
     }, [dayWidth])
 
@@ -150,7 +132,12 @@ export const TimelineMain = forwardRef<TimelineMainRef, TimelineMainProps>(
 
     // Exposer la fonction scrollToToday via ref
     useImperativeHandle(ref, () => ({
-      scrollToToday
+      scrollToToday,
+      scrollToVertical: (scrollTop: number) => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = scrollTop
+        }
+      }
     }))
 
     // Effet pour le scroll initial vers aujourd'hui
@@ -210,6 +197,8 @@ export const TimelineMain = forwardRef<TimelineMainRef, TimelineMainProps>(
             <TimelineContent
               data={data}
               currentView={currentView}
+              onProjectClick={onProjectClick}
+              groupBy={groupBy}
             />
           </div>
         </div>

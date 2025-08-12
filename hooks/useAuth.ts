@@ -3,10 +3,13 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
 
+export type UserRole = 'owner' | 'super_admin' | 'admin' | 'member' | 'view' | null
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [userStatus, setUserStatus] = useState<'approved' | 'pending' | 'not_member' | null>(null)
+  const [userRole, setUserRole] = useState<UserRole>(null)
 
   useEffect(() => {
     // Get initial session
@@ -32,6 +35,7 @@ export function useAuth() {
         checkUserOrganizationStatus(session.user.id)
       } else {
         setUserStatus(null)
+        setUserRole(null)
       }
     })
 
@@ -39,8 +43,6 @@ export function useAuth() {
   }, [])
 
   const checkUserOrganizationStatus = async (userId: string) => {
-    console.log('checkUserOrganizationStatus - Checking status for user:', userId)
-
     try {
       // Vérifier le statut de l'utilisateur dans l'organisation
       const { data, error } = await supabase
@@ -49,31 +51,41 @@ export function useAuth() {
         .eq('user_id', userId)
         .limit(1)
 
-      console.log('checkUserOrganizationStatus - Query result:', { data, error })
-
       if (error) {
         console.error('Query error:', error)
         setUserStatus('not_member')
+        setUserRole(null)
         return
       }
 
       if (data && data.length > 0) {
         const status = data[0].role === 'pending' ? 'pending' : 'approved'
-        console.log('checkUserOrganizationStatus - Setting status to:', status)
         setUserStatus(status)
+        setUserRole(data[0].role as UserRole)
       } else {
-        console.log('checkUserOrganizationStatus - No membership found')
         setUserStatus('not_member')
+        setUserRole(null)
       }
     } catch (error) {
       console.error('Exception in checkUserOrganizationStatus:', error)
       setUserStatus('not_member')
+      setUserRole(null)
     }
   }
 
+  // Fonction pour vérifier si l'utilisateur peut modifier les données
+  const canEdit = (): boolean => {
+    if (!userRole) return false
+    return ['owner', 'super_admin', 'admin', 'member'].includes(userRole)
+  }
+
+  // Fonction pour vérifier si l'utilisateur peut seulement consulter
+  const canView = (): boolean => {
+    if (!userRole) return false
+    return ['owner', 'super_admin', 'admin', 'member', 'view'].includes(userRole)
+  }
+
   const signUp = async (email: string, password: string, fullName: string, orgMetadata?: { name: string, id?: string }) => {
-    console.log('signUp - Starting registration with:', { email, fullName, orgMetadata })
-    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -85,13 +97,9 @@ export function useAuth() {
       }
     })
     
-    console.log('signUp - Result:', { data, error })
-    
     // Si l'inscription réussit et qu'on a des métadonnées d'organisation
     if (data.user && !error && orgMetadata?.id) {
       try {
-        console.log('Adding user to organization:', orgMetadata.id)
-        
         // Ajouter l'utilisateur à l'organisation
         const { error: orgError } = await supabase
           .from('organization_members')
@@ -103,8 +111,6 @@ export function useAuth() {
         
         if (orgError) {
           console.error('Error adding user to organization:', orgError)
-        } else {
-          console.log('User successfully added to organization')
         }
         
         // Mettre à jour le profil avec l'organisation principale
@@ -115,8 +121,6 @@ export function useAuth() {
         
         if (profileError) {
           console.error('Error updating profile:', profileError)
-        } else {
-          console.log('Profile successfully updated with organization')
         }
         
       } catch (err) {
@@ -144,6 +148,9 @@ export function useAuth() {
     user,
     loading,
     userStatus,
+    userRole,
+    canEdit,
+    canView,
     signUp,
     signIn,
     signOut

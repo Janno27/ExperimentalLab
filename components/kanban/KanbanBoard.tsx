@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import type { Experimentation } from '@/hooks/useExperimentations'
-import { COLUMN_ORDER } from '@/hooks/useExperimentations'
+import type { Experimentation } from '@/hooks/useExperimentation'
+import { COLUMN_ORDER } from '@/hooks/useExperimentation'
 import { KanbanCard } from './KanbanCard'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'

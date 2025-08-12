@@ -22,9 +22,9 @@ import { useState } from "react"
 export default function Page() {
   const [openForm, setOpenForm] = useState(false)
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="max-w-full overflow-hidden h-screen">
         <header className="flex h-16 shrink-0 items-center gap-2">
           <div className="flex items-center gap-2 px-4 flex-1">
             <SidebarTrigger className="-ml-1" />
@@ -55,7 +55,7 @@ export default function Page() {
           </div>
         </header>
         <MultiStepForm isOpen={openForm} setIsOpen={setOpenForm} />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0 overflow-hidden">
           <Kanban />
         </div>
       </SidebarInset>

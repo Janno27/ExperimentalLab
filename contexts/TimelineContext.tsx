@@ -2,13 +2,13 @@
 'use client'
 
 import React, { createContext, useContext, ReactNode } from 'react'
-import { useTimelineData } from '@/components/timeline/hooks/useTimelineData'
+import { useExperimentation } from '@/hooks/useExperimentation'
 
 interface TimelineContextValue {
   data: any
   state: any
   loading: boolean
-  toggleCountry: (countryCode: string) => void
+  toggleCountry: ((countryCode: string) => void) | undefined
 }
 
 const TimelineContext = createContext<TimelineContextValue | null>(null)
@@ -26,7 +26,7 @@ export const TimelineProvider: React.FC<TimelineProviderProps> = ({
     state,
     loading,
     toggleCountry
-  } = useTimelineData()
+  } = useExperimentation()
 
   const contextValue: TimelineContextValue = {
     data,

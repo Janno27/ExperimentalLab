@@ -3,14 +3,14 @@
 import * as React from "react"
 import {
   BookOpen,
-  Bot,
   Frame,
   LifeBuoy,
   Map,
   PieChart,
   Send,
   Settings2,
-  SquareTerminal,
+  LayoutDashboard,
+  Kanban,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -45,66 +45,46 @@ const data = {
   },
   navMain: [
     {
-      title: "Playground",
-      url: "#",
-      icon: SquareTerminal,
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: LayoutDashboard,
       isActive: true,
-      items: [
-        {
-          title: "History",
-          url: "#",
-        },
-        {
-          title: "Starred",
-          url: "#",
-        },
-        {
-          title: "Settings",
-          url: "#",
-        },
-      ],
     },
     {
-      title: "Models",
-      url: "#",
-      icon: Bot,
-      items: [
-        {
-          title: "Genesis",
-          url: "#",
-        },
-        {
-          title: "Explorer",
-          url: "#",
-        },
-        {
-          title: "Quantum",
-          url: "#",
-        },
-      ],
+      title: "Kanban",
+      url: "/kanban",
+      icon: Kanban,
     },
     {
-      title: "Documentation",
-      url: "#",
+      title: "Timeline",
+      url: "/timeline",
       icon: BookOpen,
       items: [
         {
-          title: "Introduction",
-          url: "#",
+          title: "Live Test",
+          url: "/timeline?tab=live-test",
         },
         {
-          title: "Get Started",
-          url: "#",
+          title: "Market Overview",
+          url: "/timeline?tab=market-overview",
         },
         {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
+          title: "Completed Test",
+          url: "/timeline?tab=completed-test",
         },
       ],
+    },
+  ],
+  navSecondary: [
+    {
+      title: "Support",
+      url: "#",
+      icon: LifeBuoy,
+    },
+    {
+      title: "Feedback",
+      url: "#",
+      icon: Send,
     },
     {
       title: "Settings",
@@ -128,18 +108,6 @@ const data = {
           url: "#",
         },
       ],
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Support",
-      url: "#",
-      icon: LifeBuoy,
-    },
-    {
-      title: "Feedback",
-      url: "#",
-      icon: Send,
     },
   ],
   projects: [
@@ -172,17 +140,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     async function fetchData() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        console.log('User ID:', user.id)
-        
         // Récupérer le profil
-        const { data: profileData, error: profileError } = await supabase
+        const { data: profileData } = await supabase
           .from('profiles')
           .select('full_name, email, avatar_url, main_organization_id')
           .eq('id', user.id)
           .single()
-        
-        console.log('Profile data:', profileData)
-        console.log('Profile error:', profileError)
         
         setProfile({
           name: profileData?.full_name || '',
@@ -191,13 +154,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         })
 
         // Récupérer toutes les organisations où l'utilisateur est membre
-        const { data: memberData, error: memberError } = await supabase
+        const { data: memberData } = await supabase
           .from('organization_members')
           .select('role, organization_id, organizations(id, name, avatar_url)')
           .eq('user_id', user.id)
-        
-        console.log('Member data:', memberData)
-        console.log('Member error:', memberError)
 
         if (memberData && memberData.length > 0) {
           // Trouver le rôle le plus élevé (super_admin > admin > member)
@@ -209,7 +169,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           })
           
           setUserRole(highestRole.role)
-          console.log('Highest role:', highestRole.role)
 
           // Si super admin, récupérer toutes les organisations
           if (highestRole.role === 'super_admin') {
@@ -219,7 +178,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             
             if (allOrgs) {
               setOrganizations(allOrgs)
-              console.log('All organizations:', allOrgs)
             }
           }
 
@@ -240,7 +198,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             
             if (orgData) {
               setOrganization(orgData)
-              console.log('Main organization:', orgData)
             }
           }
         }
@@ -250,7 +207,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }, [])
 
   const handleOrganizationSwitch = async (orgId: string) => {
-    console.log('Switching to organization:', orgId)
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       // Mettre à jour le profil avec la nouvelle organisation principale
@@ -264,8 +220,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         return
       }
       
-      console.log('Profile updated successfully')
-      
       // Notifier les autres composants du changement d'organisation
       localStorage.setItem('organization_changed', Date.now().toString())
       
@@ -273,14 +227,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       window.location.reload()
     }
   }
-
-  // Debug logs
-  console.log('Current state:', {
-    userRole,
-    organizationsCount: organizations.length,
-    organization,
-    shouldShowDropdown: userRole === 'super_admin' && organizations.length > 1
-  })
 
   return (
     <Sidebar variant="inset" collapsible="icon" {...props}>
@@ -376,7 +322,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
+        <NavProjects />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

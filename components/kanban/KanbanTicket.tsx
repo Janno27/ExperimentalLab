@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import type { Experimentation } from '@/hooks/useExperimentations'
+import type { Experimentation } from '@/hooks/useExperimentation'
 import { DialogTitle } from '@/components/ui/dialog'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import Image from 'next/image'

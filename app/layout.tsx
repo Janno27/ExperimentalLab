@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from 'sonner'
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { AppLayoutClient } from '@/components/ui/app-layout-client'
+import { FilterProvider } from '@/contexts/FilterContext'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,9 +33,11 @@ export default function RootLayout({
         style={{ backgroundColor: 'var(--sidebar)' }}
       >
         <AppLayoutClient>
-          <AuthGuard>
-            {children}
-          </AuthGuard>
+          <FilterProvider>
+            <AuthGuard>
+              {children}
+            </AuthGuard>
+          </FilterProvider>
           <Toaster position="bottom-left" />
         </AppLayoutClient>
       </body>

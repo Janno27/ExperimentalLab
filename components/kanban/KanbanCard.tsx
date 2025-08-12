@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import type { Experimentation } from '@/hooks/useExperimentations'
+import type { Experimentation } from '@/hooks/useExperimentation'
 import { ChevronDown, ChevronUp, FlaskConical, Sparkles, Wrench } from 'lucide-react'
 import {
   Dialog,
