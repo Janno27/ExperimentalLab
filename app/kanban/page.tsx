@@ -31,7 +31,7 @@ export default function Page() {
   const { appliedFilters } = useFilters()
   
   // Récupérer les données pour les filtres
-  const { markets = [], roles = [], scopes = [] } = useExperimentation({ 
+  const { markets = [], scopes = [] } = useExperimentation({ 
     useAirtable: true, 
     timelineMode: false 
   })
@@ -43,8 +43,8 @@ export default function Page() {
     if (appliedFilters.owner && appliedFilters.owner.length > 0) count++
     if (appliedFilters.market && appliedFilters.market.length > 0) count++
     if (appliedFilters.scope && appliedFilters.scope.length > 0) count++
-    if (appliedFilters.role && appliedFilters.role.length > 0) count++
-    // Note: Month et Region ne sont pas comptés car ils sont masqués dans Kanban
+    if (appliedFilters.region) count++
+    // Note: Month n'est pas compté car il est masqué dans Kanban
     return count
   }
 
@@ -124,9 +124,8 @@ export default function Page() {
           onClose={() => setIsFilterOverlayOpen(false)}
           markets={markets}
           scopes={scopes}
-          roles={roles}
           hideMonth={true}
-          hideRegion={true}
+          hideRegion={false}
         />
       </SidebarInset>
     </SidebarProvider>

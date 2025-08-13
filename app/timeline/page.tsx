@@ -20,6 +20,9 @@ import { TimelineView, TimelineViewRef } from "@/components/timeline"
 import { TimelineControls } from "@/components/timeline/TimelineControls"
 import { useState, useRef, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
+import { FilterOverlay } from "@/components/dashboard/filter-overlay"
+import { useFilters } from '@/contexts/FilterContext'
+import { useExperimentation } from "@/hooks/useExperimentation"
 
 export default function Page() {
   const searchParams = useSearchParams()
@@ -27,9 +30,27 @@ export default function Page() {
   const [activeTab, setActiveTab] = useState('live-test')
   const [activeView, setActiveView] = useState<'timeline' | 'table'>('timeline')
   const [searchValue, setSearchValue] = useState("")
+  const [isFilterOverlayOpen, setIsFilterOverlayOpen] = useState(false)
   const timelineViewRef = useRef<TimelineViewRef | null>(null)
   const marketOverviewTimelineRef = useRef<TimelineViewRef | null>(null)
   const completedTestTimelineRef = useRef<TimelineViewRef | null>(null)
+  
+  // Récupérer les filtres appliqués et les données pour les filtres
+  const { appliedFilters } = useFilters()
+  const { markets = [], scopes = [] } = useExperimentation({ 
+    useAirtable: true, 
+    timelineMode: false 
+  })
+
+  // Compter et vérifier les filtres actifs (uniquement ceux visibles dans Timeline)
+  const getActiveFiltersCount = () => {
+    let count = 0
+    if (appliedFilters.region) count++
+    if (appliedFilters.market && appliedFilters.market.length > 0) count++
+    if (appliedFilters.scope && appliedFilters.scope.length > 0) count++
+    // Note: Month n'est pas compté car il est masqué dans Timeline
+    return count
+  }
 
   // Gérer les paramètres d'URL pour ouvrir directement le bon tab
   useEffect(() => {
@@ -97,11 +118,22 @@ export default function Page() {
               activeView={activeView}
               onViewTypeChange={handleViewTypeChange}
               onSearch={handleSearch}
+              onFilterClick={() => setIsFilterOverlayOpen(true)}
+              activeFiltersCount={getActiveFiltersCount()}
             />
             
             <TabsContent value="live-test" className="mt-0 overflow-hidden flex-1 flex flex-col">
               <div className="w-full h-[80vh] overflow-hidden flex flex-col">
-                <TimelineView ref={timelineViewRef} currentView={currentView} activeView={activeView} searchValue={searchValue} />
+                <TimelineView 
+                  ref={timelineViewRef} 
+                  currentView={currentView} 
+                  activeView={activeView} 
+                  searchValue={searchValue}
+                  region={appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined}
+                  market={appliedFilters.market}
+                  scope={appliedFilters.scope}
+                  markets={markets}
+                />
               </div>
             </TabsContent>
             <TabsContent value="market-overview" className="mt-0 overflow-hidden flex-1 flex flex-col">
@@ -113,6 +145,10 @@ export default function Page() {
                   validStatuses={["Refinement", "Design & Development", "Setup", "Running", "Ready for Analysis", "Analysing", "Open", "Done"]}
                   searchValue={searchValue}
                   requireDoneDate={false}
+                  region={appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined}
+                  market={appliedFilters.market}
+                  scope={appliedFilters.scope}
+                  markets={markets}
                 />
               </div>
             </TabsContent>
@@ -126,11 +162,25 @@ export default function Page() {
                   searchValue={searchValue}
                   groupBy="conclusive"
                   requireDoneDate={true}
+                  region={appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined}
+                  market={appliedFilters.market}
+                  scope={appliedFilters.scope}
+                  markets={markets}
                 />
               </div>
             </TabsContent>
           </Tabs>
         </div>
+
+        {/* Filter Overlay */}
+        <FilterOverlay
+          isOpen={isFilterOverlayOpen}
+          onClose={() => setIsFilterOverlayOpen(false)}
+          markets={markets}
+          scopes={scopes}
+          hideMonth={true}
+          hideRegion={false}
+        />
       </SidebarInset>
     </SidebarProvider>
   )

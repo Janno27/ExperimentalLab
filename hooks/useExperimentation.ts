@@ -34,6 +34,7 @@ export interface Project {
   timeFromAnalysisToDone?: number
   tool?: string
   scope?: string
+  region?: string // APAC | EMEA | AMER
   // Nouveaux champs pour la section Data
   audience?: string
   conversion?: string
@@ -80,7 +81,7 @@ export interface Experimentation {
   [key: string]: any
 }
 
-export interface MarketRef { id: string; name: string }
+export interface MarketRef { id: string; name: string; region?: string }
 export interface OwnerRef { id: string; name: string }
 
 export interface TimelineData {
@@ -298,6 +299,20 @@ export function useExperimentation(options: {
           const testTypeName = testTypeIds.length > 0 ? getName(testTypeIds[0], testTypes) : ""
           const productName = productIds.length > 0 ? getName(productIds[0], products) : ""
           
+          // Gérer le champ Region qui est un lookup vers la table Market
+          let region = ""
+          const regionField = record.fields.Region
+          if (regionField) {
+            if (Array.isArray(regionField)) {
+              // Airtable retourne directement les valeurs résolues du lookup
+              region = regionField[0] || ""
+            }
+            // Cas de valeur directe (string)
+            else if (typeof regionField === 'string') {
+              region = regionField
+            }
+          }
+          
           const title = record.fields.Title as string || record.fields.Name as string || ""
           const status = record.fields.Status as string
           const startDateStr = record.fields['Start Date'] as string
@@ -318,6 +333,7 @@ export function useExperimentation(options: {
           const timeFromAnalysisToDone = parseOptionalNumber(record.fields['Days from Analysing to Done'])
           const tool = record.fields['Tool:'] as string || ""
           const scope = record.fields['Scope'] as string || ""
+          const regionName = region // Utiliser le nom de la région extrait
           
           // Nouveaux champs pour la section Data
           const audience = record.fields['Audience'] as string || ""
@@ -442,6 +458,7 @@ export function useExperimentation(options: {
             timeFromAnalysisToDone,
             tool,
             scope,
+            region, // Ajouter la région
             audience,
             conversion,
             existingRate,
@@ -537,6 +554,14 @@ export function useExperimentation(options: {
 
       // Traitement spécifique pour Timeline
       if (timelineMode) {
+        // Appliquer le filtre de région s'il est fourni
+        const filteredProjects = region
+          ? projects.filter((p: Project) => {
+              // Filtrer par la région du projet
+              return p.region === region
+            })
+          : projects
+        
         // Obtenir la date du jour
         const today = new Date()
         const todayString = getTodayString()
@@ -561,14 +586,14 @@ export function useExperimentation(options: {
         const months = getMonthsInRange(timelineStart, timelineEnd)
 
         // Extraire les pays et sections uniques
-        const countries = [...new Set(projects.map(p => p.country).filter(Boolean))].sort()
-        const sections = [...new Set(projects.map(p => p.section).filter(Boolean))].sort()
+        const countries = [...new Set(filteredProjects.map(p => p.country).filter(Boolean))].sort()
+        const sections = [...new Set(filteredProjects.map(p => p.section).filter(Boolean))].sort()
 
         // Définir les pays expansés par défaut
         const expandedCountries = new Set(countries.slice(0, 3))
 
         setData({
-          projects: projects.sort((a, b) => {
+          projects: filteredProjects.sort((a, b) => {
             const countryComparison = a.country.localeCompare(b.country)
             if (countryComparison !== 0) {
               return countryComparison

@@ -17,6 +17,11 @@ interface TimelineViewProps {
   searchValue?: string
   groupBy?: 'country' | 'conclusive'
   requireDoneDate?: boolean
+  // Nouvelles propriétés pour les filtres
+  region?: 'APAC' | 'EMEA' | 'AMER'
+  market?: string[]
+  scope?: string[]
+  markets?: Array<{ id: string; name: string }>
 }
 
 export interface TimelineViewRef {
@@ -24,12 +29,13 @@ export interface TimelineViewRef {
 }
 
 export const TimelineView = forwardRef<TimelineViewRef, TimelineViewProps>(
-  ({ currentView, activeView = 'timeline', validStatuses, searchValue = "", groupBy = 'country', requireDoneDate = false }, ref) => {
+  ({ currentView, activeView = 'timeline', validStatuses, searchValue = "", groupBy = 'country', requireDoneDate = false, region, market, scope, markets = [] }, ref) => {
     const result = useExperimentation({ 
       useAirtable: true, 
       timelineMode: true,
       validStatuses,
-      requireDoneDate
+      requireDoneDate,
+      region
     })
     
     // Extraire les données avec des valeurs par défaut
@@ -39,12 +45,40 @@ export const TimelineView = forwardRef<TimelineViewRef, TimelineViewProps>(
             loading = false, 
             refreshDataSilent = async () => {} } = result
     
-    // Filtrer les projets par recherche
-    const filteredProjects = searchValue 
-      ? data.projects.filter(project => 
-          project.title.toLowerCase().includes(searchValue.toLowerCase())
-        )
-      : data.projects
+    // Filtrer les projets par recherche et autres filtres
+    const filteredProjects = data.projects.filter(project => {
+      // Filtre par recherche
+      if (searchValue && !project.title.toLowerCase().includes(searchValue.toLowerCase())) {
+        return false
+      }
+      
+      // Filtre par market (utiliser les noms des marchés, pas les IDs)
+      if (market && market.length > 0) {
+        const projectMarket = project.country
+        if (!projectMarket) {
+          return false
+        }
+        // Vérifier si le marché du projet correspond à un des marchés sélectionnés
+        const selectedMarketNames = market.map(marketId => {
+          const marketObj = markets.find((m: { id: string; name: string }) => m.id === marketId)
+          return marketObj?.name
+        }).filter(Boolean)
+        
+        if (!selectedMarketNames.includes(projectMarket)) {
+          return false
+        }
+      }
+      
+      // Filtre par scope
+      if (scope && scope.length > 0) {
+        const projectScope = project.scope
+        if (!projectScope || !scope.includes(projectScope)) {
+          return false
+        }
+      }
+      
+      return true
+    })
     
     // Créer une nouvelle data avec les projets filtrés
     const filteredData = {

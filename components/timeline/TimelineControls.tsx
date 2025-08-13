@@ -13,6 +13,9 @@ interface TimelineControlsProps {
   activeView: 'timeline' | 'table'
   onViewTypeChange: (viewType: 'timeline' | 'table') => void
   onSearch?: (value: string) => void
+  // Nouvelles propriétés pour le filtre
+  onFilterClick?: () => void
+  activeFiltersCount?: number
 }
 
 export function TimelineControls({ 
@@ -22,7 +25,9 @@ export function TimelineControls({
   onTabChange, 
   activeView, 
   onViewTypeChange,
-  onSearch
+  onSearch,
+  onFilterClick,
+  activeFiltersCount = 0
 }: TimelineControlsProps) {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [searchValue, setSearchValue] = useState("")
@@ -176,9 +181,15 @@ export function TimelineControls({
         <Button 
           variant="ghost" 
           size="sm"
-          className="text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 h-6 px-2 cursor-pointer transition-all duration-200 hover:scale-105"
+          onClick={onFilterClick}
+          className="relative text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 h-6 px-2 cursor-pointer transition-all duration-200 hover:scale-105"
         >
           Filter
+          {activeFiltersCount > 0 && (
+            <span className="absolute -top-1 -right-1 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-purple-600 text-white text-[10px] leading-none">
+              {activeFiltersCount}
+            </span>
+          )}
         </Button>
       </div>
     </div>

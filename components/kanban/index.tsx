@@ -54,13 +54,6 @@ export default function Kanban({ searchValue = "" }: KanbanProps) {
         }
       }
       
-      // Filtre par role
-      if (appliedFilters.role && appliedFilters.role.length > 0) {
-        if (!card.role || !appliedFilters.role.includes(card.role)) {
-          return false
-        }
-      }
-      
       // Filtre par scope
       if (appliedFilters.scope && appliedFilters.scope.length > 0) {
         if (!card.scope || !appliedFilters.scope.includes(card.scope)) {
@@ -88,8 +81,20 @@ export default function Kanban({ searchValue = "" }: KanbanProps) {
         }
       }
       
-      // Note: Les filtres Month et Region sont intentionnellement ignorés pour la page Kanban
-      // même s'ils sont présents dans le localStorage
+      // Filtre par region
+      if (appliedFilters.region) {
+        const cardRegion = card.region || card.Region
+        if (!cardRegion) return false
+        
+        if (Array.isArray(cardRegion)) {
+          if (!cardRegion.includes(appliedFilters.region)) return false
+        } else {
+          if (String(cardRegion) !== appliedFilters.region) return false
+        }
+      }
+      
+      // Note: Le filtre Month est intentionnellement ignoré pour la page Kanban
+      // même s'il est présent dans le localStorage
       
       return true
     })

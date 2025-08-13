@@ -82,7 +82,7 @@ export function TicketOverlayTimeline({ project, expanded, onToggleExpanded }: T
               <span className="text-gray-600">Ready for Analysis</span>
             </div>
             <div className="flex-1 h-px bg-gray-200 relative">
-              {timelineDurations.readyToAnalysis && timelineDurations.readyToAnalysis > 0 && (
+              {timelineDurations.readyToAnalysis !== undefined && timelineDurations.readyToAnalysis > 0 && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 text-center">
                   <div className="text-[10px] text-gray-500">{timelineDurations.readyToAnalysis}d</div>
                 </div>
@@ -99,7 +99,7 @@ export function TicketOverlayTimeline({ project, expanded, onToggleExpanded }: T
               <span className="text-gray-600">Analysis</span>
             </div>
             <div className="flex-1 h-px bg-gray-200 relative">
-              {timelineDurations.analysisToDone && timelineDurations.analysisToDone > 0 && (
+              {timelineDurations.analysisToDone !== undefined && timelineDurations.analysisToDone > 0 && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 text-center">
                   <div className="text-[10px] text-gray-500">{timelineDurations.analysisToDone}d</div>
                 </div>

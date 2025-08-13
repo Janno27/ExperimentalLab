@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { Project } from '@/hooks/useExperimentation'
 import { updateExperimentationFields } from '@/lib/airtable'
 import { toast } from 'sonner'
+import { ImageViewer } from '@/components/ui/image-viewer'
 
 interface TicketOverlayDescriptionProps {
   project: Project
@@ -56,6 +57,7 @@ export function TicketOverlayDescription({ project, expanded, onToggleExpanded, 
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [editedProject, setEditedProject] = useState<Project>(project)
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false)
 
   const handleSave = async () => {
     try {
@@ -227,13 +229,19 @@ export function TicketOverlayDescription({ project, expanded, onToggleExpanded, 
                     {(() => {
                       const controlUrl = getAttachmentUrl(project.control)
                       return controlUrl ? (
-                        <ImageWithSkeleton 
-                          src={controlUrl} 
-                          alt="Control" 
-                          width={150}
-                          height={100}
-                          className="rounded max-h-24 object-contain" 
-                        />
+                        <div 
+                          className="cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => setIsImageViewerOpen(true)}
+                          title="Click to view full size"
+                        >
+                          <ImageWithSkeleton 
+                            src={controlUrl} 
+                            alt="Control" 
+                            width={150}
+                            height={100}
+                            className="rounded max-h-24 object-contain" 
+                          />
+                        </div>
                       ) : (
                         <div className="text-xs text-gray-500">Aucune image</div>
                       )
@@ -246,13 +254,19 @@ export function TicketOverlayDescription({ project, expanded, onToggleExpanded, 
                     {(() => {
                       const variationUrl = getAttachmentUrl(project.variation1)
                       return variationUrl ? (
-                        <ImageWithSkeleton 
-                          src={variationUrl} 
-                          alt="Variation 1" 
-                          width={150}
-                          height={100}
-                          className="rounded max-h-24 object-contain" 
-                        />
+                        <div 
+                          className="cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => setIsImageViewerOpen(true)}
+                          title="Click to view full size"
+                        >
+                          <ImageWithSkeleton 
+                            src={variationUrl} 
+                            alt="Variation 1" 
+                            width={150}
+                            height={100}
+                            className="rounded max-h-24 object-contain" 
+                          />
+                        </div>
                       ) : (
                         <div className="text-xs text-gray-500">Aucune image</div>
                       )
@@ -262,6 +276,15 @@ export function TicketOverlayDescription({ project, expanded, onToggleExpanded, 
               </div>
             </div>
           )}
+
+          {/* ImageViewer */}
+          <ImageViewer
+            isOpen={isImageViewerOpen}
+            onClose={() => setIsImageViewerOpen(false)}
+            controlImage={project.control}
+            variationImage={project.variation1}
+            title={`${project.title} - Images`}
+          />
         </div>
       )}
     </div>

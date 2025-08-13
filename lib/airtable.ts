@@ -101,7 +101,7 @@ export async function fetchExperimentations(): Promise<AirtableRecord[]> {
 
 export async function fetchMarkets() {
   // Vérifier le cache d'abord
-  const cachedData = airtableCache.get<{id: string, name: string}[]>('markets')
+  const cachedData = airtableCache.get<{id: string, name: string, region?: string}[]>('markets')
   if (cachedData) {
     return cachedData
   }
@@ -118,7 +118,8 @@ export async function fetchMarkets() {
   const data: AirtableResponse = await res.json();
   const markets = data.records.map((r: AirtableRecord) => ({ 
     id: r.id, 
-    name: (r.fields.Market as string) || '' 
+    name: (r.fields.Market as string) || '',
+    region: (r.fields.Region as string) || ''
   }));
   
   // Mettre en cache

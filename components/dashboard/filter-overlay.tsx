@@ -11,12 +11,11 @@ interface FilterOverlayProps {
   onClose: () => void
   markets?: Array<{ id: string; name: string }>
   scopes?: string[]
-  roles?: string[]
   hideMonth?: boolean
   hideRegion?: boolean
 }
 
-export function FilterOverlay({ isOpen, onClose, markets = [], scopes = [], roles = [], hideMonth = false, hideRegion = false }: FilterOverlayProps) {
+export function FilterOverlay({ isOpen, onClose, markets = [], scopes = [], hideMonth = false, hideRegion = false }: FilterOverlayProps) {
   const { filters, appliedFilters, setFilters, setAppliedFilters, resetFilters } = useFilters()
   const [localFilters, setLocalFilters] = useState(filters)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['region','date']))
@@ -45,9 +44,6 @@ export function FilterOverlay({ isOpen, onClose, markets = [], scopes = [], role
       }
       if (appliedFilters.scope) {
         filteredFilters.scope = appliedFilters.scope
-      }
-      if (appliedFilters.role) {
-        filteredFilters.role = appliedFilters.role
       }
       
       setLocalFilters(filteredFilters as FilterState)
@@ -100,17 +96,6 @@ export function FilterOverlay({ isOpen, onClose, markets = [], scopes = [], role
         ? currentScopes.filter(s => s !== scope)
         : [...currentScopes, scope]
       return { ...prev, scope: newScopes }
-    })
-  }
-
-  // Sélection multiple des rôles
-  const handleRoleSelect = (role: string) => {
-    setLocalFilters(prev => {
-      const currentRoles = prev.role || []
-      const newRoles = currentRoles.includes(role)
-        ? currentRoles.filter(r => r !== role)
-        : [...currentRoles, role]
-      return { ...prev, role: newRoles }
     })
   }
 
@@ -171,46 +156,44 @@ export function FilterOverlay({ isOpen, onClose, markets = [], scopes = [], role
         {/* Contenu avec scroll */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-4 space-y-6">
-            {/* Section Region - masquée si hideRegion est true */}
-            {!hideRegion && (
-              <div className="space-y-3">
-                <button
-                  onClick={() => toggleSection('region')}
-                  className="w-full flex items-center justify-between p-0 text-left hover:bg-transparent transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-gray-500" />
-                    <span className="text-xs font-medium text-gray-900">Region</span>
-                  </div>
-                  {expandedSections.has('region') ? (
-                    <ChevronDown className="w-3 h-3 text-gray-400" />
-                  ) : (
-                    <ChevronRight className="w-3 h-3 text-gray-400" />
-                  )}
-                </button>
-
-                {expandedSections.has('region') && (
-                  <div className="pl-6">
-                    <div className="flex flex-wrap gap-2">
-                      {(['APAC','EMEA','AMER'] as const).map(option => {
-                        const selected = localFilters.region === option
-                        return (
-                          <button
-                            key={option}
-                            onClick={() => handleRegionSelect(selected ? null : option)}
-                            className={`px-2 py-1 text-xs rounded border transition-colors cursor-pointer ${selected ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
-                          >
-                            {option}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
+            {/* Section Region */}
+            <div className="space-y-3">
+              <button
+                onClick={() => toggleSection('region')}
+                className="w-full flex items-center justify-between p-0 text-left hover:bg-transparent transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-gray-500" />
+                  <span className="text-xs font-medium text-gray-900">Region</span>
+                </div>
+                {expandedSections.has('region') ? (
+                  <ChevronDown className="w-3 h-3 text-gray-400" />
+                ) : (
+                  <ChevronRight className="w-3 h-3 text-gray-400" />
                 )}
-              </div>
-            )}
+              </button>
 
-            {/* Section Month - masquée si hideMonth est true */}
+              {expandedSections.has('region') && (
+                <div className="pl-6">
+                  <div className="flex flex-wrap gap-2">
+                    {(['APAC','EMEA','AMER'] as const).map(option => {
+                      const selected = localFilters.region === option
+                      return (
+                        <button
+                          key={option}
+                          onClick={() => handleRegionSelect(selected ? null : option)}
+                          className={`px-2 py-1 text-xs rounded border transition-colors cursor-pointer ${selected ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+                        >
+                          {option}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Section Month */}
             {!hideMonth && (
               <div className="space-y-3">
                 <button
@@ -306,43 +289,6 @@ export function FilterOverlay({ isOpen, onClose, markets = [], scopes = [], role
                           className={`px-2 py-1 text-xs rounded border transition-colors cursor-pointer ${selected ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
                         >
                           {scope}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Section Role */}
-            <div className="space-y-3">
-              <button
-                onClick={() => toggleSection('role')}
-                className="w-full flex items-center justify-between p-0 text-left hover:bg-transparent transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gray-300 rounded-full"></div>
-                  <span className="text-xs font-medium text-gray-900">Role</span>
-                </div>
-                {expandedSections.has('role') ? (
-                  <ChevronDown className="w-3 h-3 text-gray-400" />
-                ) : (
-                  <ChevronRight className="w-3 h-3 text-gray-400" />
-                )}
-              </button>
-              
-              {expandedSections.has('role') && (
-                <div className="pl-6">
-                  <div className="flex flex-wrap gap-2">
-                    {roles.map((role) => {
-                      const selected = (localFilters.role || []).includes(role)
-                      return (
-                        <button
-                          key={role}
-                          onClick={() => handleRoleSelect(role)}
-                          className={`px-2 py-1 text-xs rounded border transition-colors cursor-pointer ${selected ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
-                        >
-                          {role}
                         </button>
                       )
                     })}
