@@ -100,7 +100,7 @@ export function TicketOverlayTimeline({ project, expanded, onToggleExpanded }: T
             </div>
             <div className="flex-1 h-px bg-gray-200 relative">
               {timelineDurations.analysisToDone && timelineDurations.analysisToDone > 0 && (
-                <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-center">
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 text-center">
                   <div className="text-[10px] text-gray-500">{timelineDurations.analysisToDone}d</div>
                 </div>
               )}
