@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import Image from 'next/image'
 
@@ -38,27 +38,17 @@ export function ImageViewer({ isOpen, onClose, controlImage, variationImage, tit
     }
   }
 
-  const handlePreviousImage = () => {
+  const handlePreviousImage = useCallback(() => {
     if (currentImageIndex > 0) {
       setCurrentImageIndex(currentImageIndex - 1)
     }
-  }
+  }, [currentImageIndex])
 
-  const handleNextImage = () => {
+  const handleNextImage = useCallback(() => {
     if (currentImageIndex < images.length - 1) {
       setCurrentImageIndex(currentImageIndex + 1)
     }
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose()
-    } else if (e.key === 'ArrowLeft') {
-      handlePreviousImage()
-    } else if (e.key === 'ArrowRight') {
-      handleNextImage()
-    }
-  }
+  }, [currentImageIndex, images.length])
 
   React.useEffect(() => {
     if (isOpen) {
@@ -75,7 +65,7 @@ export function ImageViewer({ isOpen, onClose, controlImage, variationImage, tit
       document.addEventListener('keydown', handleKeyDownEvent)
       return () => document.removeEventListener('keydown', handleKeyDownEvent)
     }
-  }, [isOpen, currentImageIndex])
+  }, [isOpen, currentImageIndex, onClose, handleNextImage, handlePreviousImage])
 
   if (!isOpen || images.length === 0) return null
 

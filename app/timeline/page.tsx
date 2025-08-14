@@ -20,7 +20,7 @@ import { TimelineView, TimelineViewRef } from "@/components/timeline"
 import { TimelineControls } from "@/components/timeline/TimelineControls"
 import { useState, useRef, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
-import { FilterOverlay } from "@/components/dashboard/filter-overlay"
+import { FilterOverlay } from "@/components/ui/filter-overlay"
 import { useFilters } from '@/contexts/FilterContext'
 import { useExperimentation } from "@/hooks/useExperimentation"
 

@@ -20,7 +20,7 @@ import { MultiStepForm } from "@/components/multi-step-form"
 import { useState } from "react"
 import { SearchBar } from "@/components/ui/searchBar"
 import { Button } from "@/components/ui/button"
-import { FilterOverlay } from "@/components/dashboard/filter-overlay"
+import { FilterOverlay } from "@/components/ui/filter-overlay"
 import { useFilters } from '@/contexts/FilterContext'
 import { useExperimentation } from "@/hooks/useExperimentation"
 

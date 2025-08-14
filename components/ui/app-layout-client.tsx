@@ -4,12 +4,14 @@ import { AppBar } from './app-bar'
 
 export function AppLayoutClient({ children }: { children: React.ReactNode }) {
   const [appBarOpen, setAppBarOpen] = useState(false)
+  const [calculatorOpen, setCalculatorOpen] = useState(false)
   const [showPadding, setShowPadding] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Gère le padding avec un délai à la fermeture
   React.useEffect(() => {
-    if (appBarOpen) {
+    const shouldShowPadding = appBarOpen || calculatorOpen
+    if (shouldShowPadding) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
       setShowPadding(true)
     } else {
@@ -19,7 +21,7 @@ export function AppLayoutClient({ children }: { children: React.ReactNode }) {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
-  }, [appBarOpen])
+  }, [appBarOpen, calculatorOpen])
 
   return (
     <div
@@ -27,7 +29,11 @@ export function AppLayoutClient({ children }: { children: React.ReactNode }) {
       style={{ paddingRight: showPadding ? 48 : 0 }}
     >
       {children}
-      <AppBar open={appBarOpen} setOpen={setAppBarOpen} />
+      <AppBar 
+        open={appBarOpen} 
+        setOpen={setAppBarOpen} 
+        onCalculatorStateChange={setCalculatorOpen}
+      />
     </div>
   )
 } 

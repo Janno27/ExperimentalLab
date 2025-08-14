@@ -1,16 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useExperimentation } from '@/hooks/useExperimentation'
+import { useMemo } from 'react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-
-
-interface ThisYearProps {
-  region?: 'APAC' | 'EMEA' | 'AMER'
-  status?: string[]
-  owner?: string[]
-  market?: string[]
-}
+import { XCircle } from 'lucide-react'
+import { useDashboardContext } from '@/contexts/DashboardContext'
 
 interface MonthlyStat {
   monthIndex: number
@@ -19,64 +12,13 @@ interface MonthlyStat {
   titles: string[]
 }
 
-export function ThisYear({ region, status, owner, market }: ThisYearProps) {
-  const [loading, setLoading] = useState(true)
-  const { cards: allCards, loading: dataLoading } = useExperimentation({ 
-    useAirtable: true, 
-    timelineMode: false, 
-    region
-  })
-
-  // Filtrer les cartes selon les filtres appliqués
-  const cards = useMemo(() => {
-    if (!allCards) return []
-    
-    let filteredCards = allCards
-
-    // Filtrer par status
-    if (status && status.length > 0) {
-      filteredCards = filteredCards.filter(card => 
-        status.includes(card.status || card.Status)
-      )
-    }
-
-    // Filtrer par owner
-    if (owner && owner.length > 0) {
-      filteredCards = filteredCards.filter(card => {
-        const cardOwner = card.owner || card.Owner
-        if (Array.isArray(cardOwner)) {
-                  return cardOwner.some(o => {
-          const ownerName = typeof o === 'string' ? o : (o as { name?: string })?.name
-          return owner.includes(ownerName || '')
-        })
-        }
-        const ownerName = typeof cardOwner === 'string' ? cardOwner : (cardOwner as { name?: string })?.name
-        return owner.includes(ownerName || '')
-      })
-    }
-
-    // Filtrer par market
-    if (market && market.length > 0) {
-      filteredCards = filteredCards.filter(card => {
-        const cardMarket = card.market || card.Market
-        if (Array.isArray(cardMarket)) {
-                  return cardMarket.some(m => {
-          const marketName = typeof m === 'string' ? m : (m as { name?: string })?.name
-          return market.includes(marketName || '')
-        })
-        }
-        const marketName = typeof cardMarket === 'string' ? cardMarket : (cardMarket as { name?: string })?.name
-        return market.includes(marketName || '')
-      })
-    }
-
-    return filteredCards
-  }, [allCards, status, owner, market])
+export function ThisYear() {
+  const { filteredExperimentations, loading, error } = useDashboardContext()
 
   const statsAll: MonthlyStat[] = useMemo(() => {
-    if (!cards) return []
+    if (!filteredExperimentations) return []
 
-    // Pour ThisYear, on utilise toujours l'année actuelle, pas le mois sélectionné
+    // Pour ThisYear, on utilise toujours l'année actuelle
     const year = new Date().getFullYear()
     const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -93,10 +35,10 @@ export function ThisYear({ region, status, owner, market }: ThisYearProps) {
       return isNaN(d.getTime()) ? null : d
     }
 
-    for (const card of cards) {
-      const dateDoneStr = (card as { 'Date - Done'?: string })['Date - Done']
-      const endDateStr = (card as { 'End Date'?: string })['End Date']
-      const status = (card as { Status?: string; status?: string }).Status || (card as { Status?: string; status?: string }).status
+    for (const record of filteredExperimentations) {
+      const dateDoneStr = record.fields['Date - Done']
+      const endDateStr = record.fields['End Date']
+      const status = record.fields.Status
 
       for (let m = 0; m < 12; m++) {
         const monthStart = new Date(year, m, 1)
@@ -117,14 +59,14 @@ export function ThisYear({ region, status, owner, market }: ThisYearProps) {
 
         if (effective) {
           results[m].count += 1
-          const title = (card as { Name?: string; Title?: string }).Name || (card as { Name?: string; Title?: string }).Title || 'Untitled'
+          const title = record.fields.Name || record.fields.Title || 'Untitled'
           results[m].titles.push(String(title))
         }
       }
     }
 
     return results
-  }, [cards])
+  }, [filteredExperimentations])
 
   // Masquer les mois futurs (toujours basé sur l'année actuelle)
   const displayedStats = useMemo(() => {
@@ -135,26 +77,38 @@ export function ThisYear({ region, status, owner, market }: ThisYearProps) {
     return statsAll.slice(0, now.getMonth() + 1)
   }, [statsAll])
 
-  useEffect(() => {
-    if (!dataLoading) setLoading(false)
-  }, [dataLoading])
-
-  if (loading || dataLoading) {
+  if (loading) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-4 min-h-[300px] flex flex-col">
-        {/* Skeleton pour les labels */}
-        <div className="grid mb-3" style={{ gridTemplateColumns: 'repeat(8, minmax(0,1fr))' }}>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="flex flex-col items-center gap-0.5">
-              <div className="h-2 w-6 bg-gray-200 rounded animate-pulse" />
-              <div className="h-2 w-4 bg-gray-200 rounded animate-pulse" />
-            </div>
-          ))}
-        </div>
+      <div className="bg-white rounded-lg border border-gray-200 py-2 w-full h-[90%] flex flex-col">
+        <div className="px-4 flex-1 flex flex-col">
+          {/* Skeleton pour les labels */}
+          <div className="grid mb-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(40px, 1fr))' }}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-0.5">
+                <div className="h-2 w-6 bg-gray-200 rounded animate-pulse" />
+                <div className="h-2 w-4 bg-gray-200 rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
 
-        {/* Skeleton pour la courbe */}
-        <div className="relative w-full flex-1 my-1">
-          <div className="w-full h-full bg-gray-100 rounded animate-pulse" />
+          {/* Skeleton pour la courbe - prend l'espace restant */}
+          <div className="relative w-full flex-1">
+            <div className="w-full h-full bg-gray-100 rounded animate-pulse" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 py-2 w-full h-full flex flex-col">
+        <div className="flex items-center justify-center flex-1 text-gray-500">
+          <div className="text-center">
+            <XCircle className="w-5 h-5 mx-auto mb-1 text-gray-300" />
+            <p className="text-[10px]">Erreur de chargement</p>
+            <p className="text-[8px] text-gray-400 mt-0.5">{error}</p>
+          </div>
         </div>
       </div>
     )
@@ -201,56 +155,56 @@ export function ThisYear({ region, status, owner, market }: ThisYearProps) {
 
   const pathD = getSmoothPath(points)
 
-
-
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="bg-white rounded-lg border border-gray-200 p-4 min-h-[45vh] flex flex-col">
-        {/* Labels et valeurs au-dessus, alignés et proches de la courbe */}
-        <div className="grid mb-3" style={{ gridTemplateColumns: `repeat(${displayedStats.length || 1}, minmax(0,1fr))` }}>
-          {displayedStats.map((s, i) => (
-            <div key={i} className="flex flex-col items-center gap-0.5">
-              <span className="text-[10px] text-gray-600 leading-none">{s.monthLabel}</span>
-              <span className="text-[10px] text-gray-900 font-medium leading-none">{s.count}</span>
-            </div>
-          ))}
-        </div>
+      <div className="bg-white rounded-lg border border-gray-200 py-2 w-full h-[90%] flex flex-col">
+        <div className="px-4 flex-1 flex flex-col">
+          {/* Labels et valeurs au-dessus, alignés et proches de la courbe */}
+          <div className="grid mb-2" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(40px, 1fr))` }}>
+            {displayedStats.map((s, i) => (
+              <div key={i} className="flex flex-col items-center gap-0.5">
+                <span className="text-[10px] text-gray-600 leading-none">{s.monthLabel}</span>
+                <span className="text-[10px] text-gray-900 font-medium leading-none">{s.count}</span>
+              </div>
+            ))}
+          </div>
 
-        {/* Courbe utilise toute la hauteur disponible sans être coupée */}
-        <div className="relative w-full flex-1 my-1">
-          <svg
-            viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-            preserveAspectRatio="none"
-            className="absolute inset-0 w-full h-full"
-          >
-            <path d={pathD} stroke="#7c3aed" strokeWidth="1.75" fill="none" vectorEffect="non-scaling-stroke" />
-          </svg>
+          {/* Courbe utilise toute la hauteur disponible sans être coupée */}
+          <div className="relative w-full flex-1">
+            <svg
+              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              preserveAspectRatio="none"
+              className="absolute inset-0 w-full h-full"
+            >
+              <path d={pathD} stroke="#7c3aed" strokeWidth="1.75" fill="none" vectorEffect="non-scaling-stroke" />
+            </svg>
 
-          {points.map((p, i) => (
-            <Tooltip key={i}>
-              <TooltipTrigger asChild>
-                <div
-                  className="absolute w-2 h-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-purple-600 bg-white"
-                  style={{ left: `${(p.x / svgWidth) * 100}%`, top: `${(p.y / svgHeight) * 100}%` }}
-                  aria-label={`${displayedStats[i].monthLabel}: ${displayedStats[i].count}`}
-                />
-              </TooltipTrigger>
-              <TooltipContent side="top" className="p-0 border-0 shadow-lg bg-transparent">
-                <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 max-w-xs">
-                  <h4 className="text-xs font-semibold text-gray-900 mb-2">{displayedStats[i].monthLabel} — {displayedStats[i].count} Done</h4>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {displayedStats[i].titles.length > 0 ? (
-                      displayedStats[i].titles.map((t, idx) => (
-                        <div key={idx} className="text-xs text-gray-600 truncate">• {t}</div>
-                      ))
-                    ) : (
-                      <div className="text-xs text-gray-500">No tests</div>
-                    )}
+            {points.map((p, i) => (
+              <Tooltip key={i}>
+                <TooltipTrigger asChild>
+                  <div
+                    className="absolute w-2 h-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-purple-600 bg-white"
+                    style={{ left: `${(p.x / svgWidth) * 100}%`, top: `${(p.y / svgHeight) * 100}%` }}
+                    aria-label={`${displayedStats[i].monthLabel}: ${displayedStats[i].count}`}
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="p-0 border-0 shadow-lg bg-transparent">
+                  <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 max-w-xs">
+                    <h4 className="text-xs font-semibold text-gray-900 mb-2">{displayedStats[i].monthLabel} — {displayedStats[i].count} Done</h4>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {displayedStats[i].titles.length > 0 ? (
+                        displayedStats[i].titles.map((t, idx) => (
+                          <div key={idx} className="text-xs text-gray-600 truncate">• {t}</div>
+                        ))
+                      ) : (
+                        <div className="text-xs text-gray-500">No tests</div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          ))}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
         </div>
       </div>
     </TooltipProvider>

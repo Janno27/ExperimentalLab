@@ -140,3 +140,30 @@
     @apply bg-background text-foreground max-w-full overflow-x-hidden;
   }
 }
+
+/* Styles pour améliorer l'UX du drag and drop */
+.drag-handle {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Empêcher la sélection de texte pendant le drag */
+.dragging {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Améliorer la fluidité du drag */
+.draggable-element {
+  will-change: transform;
+  transform: translateZ(0);
+}

@@ -4,9 +4,11 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { Separator } from "@/components/ui/separator"
 import { SearchBar } from "@/components/ui/searchBar"
 import { MultiStepForm } from "@/components/multi-step-form"
+import { DashboardProvider } from "@/contexts/DashboardContext"
 import { ThisMonth } from "@/components/dashboard/this-month"
+import { TopCroOwners } from "@/components/dashboard/top-cro-owners"
 
-import { FilterOverlay } from "@/components/dashboard/filter-overlay"
+import { FilterOverlay } from "@/components/ui/filter-overlay"
 import { Switch } from "@/components/ui/switch"
 import {
   SidebarInset,
@@ -109,7 +111,7 @@ export default function Page() {
         </header>
         
         {/* Message d'accueil centré avec MonthPicker */}
-        <div className="flex flex-col items-center pt-8 pb-4">
+        <div className="flex flex-col items-center pt-8 pb-8">
           <p className="text-sm text-gray-500 mb-2 font-light">
             {currentDate}
           </p>
@@ -122,75 +124,125 @@ export default function Page() {
         </div>
         
         {/* Grille dashboard simple */}
-        <div className="flex flex-1 flex-col p-4 pt-0">
-          <div className="space-y-4">
-            {/* This Month */}
-            <div className="w-1/3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xs font-medium text-gray-500">This month</h3>
-                  {hasActiveFilters() && (
-                    <FilteredBadge filters={{
-                      status: appliedFilters.status,
-                      owner: appliedFilters.owner,
-                      market: appliedFilters.market,
-                      region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
-                      selectedMonth: appliedFilters.selectedMonth
-                    }} />
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-gray-500">Compare</span>
-                  <Switch
-                    checked={showComparison}
-                    onCheckedChange={setShowComparison}
-                    className="scale-75"
-                  />
-                </div>
-              </div>
-              <ThisMonth 
-                showComparison={showComparison} 
-                selectedMonth={appliedFilters.selectedMonth} 
-                region={appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined}
-                status={appliedFilters.status}
-                owner={appliedFilters.owner}
-                market={appliedFilters.market}
-              />
-            </div>
-
-            {/* This Year */}
-            <div className="w-1/2">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xs font-medium text-gray-500">This year</h3>
-                  {(() => {
-                    const hasActiveFilters = (appliedFilters.status && appliedFilters.status.length > 0) || 
-                                          (appliedFilters.owner && appliedFilters.owner.length > 0) || 
-                                          (appliedFilters.market && appliedFilters.market.length > 0) || 
-                                          appliedFilters.region
-                    return hasActiveFilters && (
-                      <FilteredBadge 
-                        filters={{
+        <div className="flex flex-1 flex-col p-4 pt-0 h-full">
+          <div className="flex flex-col h-full space-y-4">
+            <DashboardProvider filters={{
+              region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
+              status: appliedFilters.status,
+              owner: appliedFilters.owner,
+              market: appliedFilters.market,
+              selectedMonth: appliedFilters.selectedMonth
+            }}>
+              {/* This Month et Top CRO owners côte à côte */}
+              <div className="flex flex-col lg:flex-row gap-4">
+                {/* This Month */}
+                <div className="w-full lg:w-1/3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-medium text-gray-500">This month</h3>
+                      {hasActiveFilters() && (
+                        <FilteredBadge filters={{
                           status: appliedFilters.status,
                           owner: appliedFilters.owner,
                           market: appliedFilters.market,
                           region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
                           selectedMonth: appliedFilters.selectedMonth
-                        }}
-                        excludeMonth={true}
+                        }} />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-gray-500">Compare</span>
+                      <Switch
+                        checked={showComparison}
+                        onCheckedChange={setShowComparison}
+                        className="scale-75"
                       />
-                    )
-                  })()}
+                    </div>
+                  </div>
+                  <ThisMonth 
+                    showComparison={showComparison} 
+                    selectedMonth={appliedFilters.selectedMonth} 
+                  />
                 </div>
-                <span className="text-[10px] text-gray-400">Done per month</span>
+
+                {/* Placeholder pour le troisième composant */}
+                <div className="w-full lg:w-1/3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-medium text-gray-500">Coming soon</h3>
+                    </div>
+                    <span className="text-[10px] text-gray-400">Placeholder</span>
+                  </div>
+                  <div className="w-full h-[120px] bg-gray-50 border border-gray-200 rounded-md flex items-center justify-center">
+                    <div className="text-center text-gray-400">
+                      <div className="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-2 flex items-center justify-center">
+                        <span className="text-lg">+</span>
+                      </div>
+                      <p className="text-sm">Nouveau composant</p>
+                    </div>
+                  </div>
+                </div>
+
+                                {/* Top Cro Owners */}
+                                <div className="w-full lg:w-1/3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-medium text-gray-500">Top performers</h3>
+                      {hasActiveFilters() && (
+                        <FilteredBadge filters={{
+                          status: appliedFilters.status,
+                          owner: appliedFilters.owner,
+                          market: appliedFilters.market,
+                          region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
+                          selectedMonth: appliedFilters.selectedMonth
+                        }} />
+                      )}
+                    </div>
+                    <span className="text-[10px] text-gray-400">This Month</span>
+                  </div>
+                  <TopCroOwners 
+                    selectedMonth={appliedFilters.selectedMonth}
+                    showComparison={showComparison}
+                  />
+                </div>
               </div>
-              <ThisYear 
-                region={appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined}
-                status={appliedFilters.status}
-                owner={appliedFilters.owner}
-                market={appliedFilters.market}
-              />
-            </div>
+
+              {/* This Year - Prend la hauteur restante et la moitié de la largeur */}
+              <div className="flex-1 flex flex-col lg:flex-row gap-4">
+                <div className="w-full lg:w-1/2">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-medium text-gray-500">This year</h3>
+                      {(() => {
+                        const hasActiveFilters = (appliedFilters.status && appliedFilters.status.length > 0) || 
+                                              (appliedFilters.owner && appliedFilters.owner.length > 0) || 
+                                              (appliedFilters.market && appliedFilters.market.length > 0) || 
+                                              appliedFilters.region
+                        return hasActiveFilters && (
+                          <FilteredBadge 
+                            filters={{
+                              status: appliedFilters.status,
+                              owner: appliedFilters.owner,
+                              market: appliedFilters.market,
+                              region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
+                              selectedMonth: appliedFilters.selectedMonth
+                            }}
+                            excludeMonth={true}
+                          />
+                        )
+                      })()}
+                    </div>
+                    <span className="text-[10px] text-gray-400">Done per month</span>
+                  </div>
+                  <div className="h-full">
+                    <ThisYear />
+                  </div>
+                </div>
+                
+                {/* Espace vide pour la moitié droite */}
+                <div className="w-full lg:w-1/2"></div>
+              </div>
+            </DashboardProvider>
           </div>
         </div>
 

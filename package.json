@@ -27,7 +27,7 @@
     "@supabase/supabase-js": "^2.52.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.23.6",
+    "framer-motion": "^12.23.12",
     "gantt-schedule-timeline-calendar": "^3.40.7",
     "lucide-react": "^0.525.0",
     "motion": "^12.23.6",
