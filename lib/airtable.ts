@@ -414,3 +414,26 @@ export async function deleteAnalysisFile(id: string) {
   
   return res.json();
 } 
+
+export async function fetchTypes() {
+  // Vérifier le cache d'abord
+  const cachedData = airtableCache.get<{id: string, name: string}[]>('types')
+  if (cachedData) {
+    return cachedData
+  }
+
+  // Récupérer les types depuis les expérimentations existantes
+  const records = await fetchExperimentations();
+  const types = Array.from(new Set(records.map(r => (r.fields['Type'] as string) || '').filter(Boolean)));
+  
+  // Créer un format cohérent avec les autres fonctions
+  const typesData = types.map((type, index) => ({
+    id: type, // Utiliser le nom comme ID pour la cohérence
+    name: type
+  }));
+  
+  // Mettre en cache
+  airtableCache.set('types', typesData)
+  
+  return typesData
+} 

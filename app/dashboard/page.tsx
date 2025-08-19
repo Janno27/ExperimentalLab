@@ -3,7 +3,6 @@
 import { AppSidebar } from "@/components/app-sidebar"
 import { Separator } from "@/components/ui/separator"
 import { SearchBar } from "@/components/ui/searchBar"
-import { MultiStepForm } from "@/components/multi-step-form"
 import { DashboardProvider } from "@/contexts/DashboardContext"
 import { ThisMonth } from "@/components/dashboard/this-month"
 import { TopCroOwners } from "@/components/dashboard/top-cro-owners"
@@ -111,7 +110,7 @@ export default function Page() {
         </header>
         
         {/* Message d'accueil centré avec MonthPicker */}
-        <div className="flex flex-col items-center pt-8 pb-8">
+        <div className="flex flex-col items-center pt-8 pb-14">
           <p className="text-sm text-gray-500 mb-2 font-light">
             {currentDate}
           </p>
@@ -184,7 +183,7 @@ export default function Page() {
                 </div>
 
                                 {/* Top Cro Owners */}
-                                <div className="w-full lg:w-1/3">
+                <div className="w-full lg:w-1/3">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <h3 className="text-xs font-medium text-gray-500">Top performers</h3>
@@ -246,8 +245,7 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Multi-step form modal */}
-        <MultiStepForm />
+
         
         {/* Filter Overlay */}
         <FilterOverlay

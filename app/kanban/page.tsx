@@ -16,13 +16,13 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import Kanban from "@/components/kanban"
-import { MultiStepForm } from "@/components/multi-step-form"
 import { useState } from "react"
 import { SearchBar } from "@/components/ui/searchBar"
 import { Button } from "@/components/ui/button"
 import { FilterOverlay } from "@/components/ui/filter-overlay"
 import { useFilters } from '@/contexts/FilterContext'
 import { useExperimentation } from "@/hooks/useExperimentation"
+import { FormExperimentation } from "@/components/form/form_experimentation"
 
 export default function Page() {
   const [openForm, setOpenForm] = useState(false)
@@ -113,7 +113,7 @@ export default function Page() {
           </div>
         </div>
 
-        <MultiStepForm isOpen={openForm} setIsOpen={setOpenForm} />
+        <FormExperimentation isOpen={openForm} onClose={() => setOpenForm(false)} />
         <div className="flex flex-1 flex-col gap-2 p-2 pt-0 overflow-hidden">
           <Kanban searchValue={searchValue} />
         </div>

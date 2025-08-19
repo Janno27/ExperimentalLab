@@ -17,6 +17,7 @@ import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
+import { Settings } from "@/components/settings"
 import {
   Sidebar,
   SidebarContent,
@@ -135,6 +136,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [organizations, setOrganizations] = useState<Array<{ id: string, name: string, avatar_url?: string }>>([])
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
@@ -323,11 +325,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <NavMain items={data.navMain} />
         <NavProjects />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavSecondary 
+          items={data.navSecondary} 
+          className="mt-auto" 
+          onSettingsOpen={() => setSettingsOpen(true)}
+        />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={profile} />
       </SidebarFooter>
+      
+      {/* Settings Modal */}
+      <Settings 
+        isOpen={settingsOpen} 
+        onClose={() => setSettingsOpen(false)} 
+      />
     </Sidebar>
   )
 }

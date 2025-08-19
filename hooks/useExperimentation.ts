@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { fetchExperimentations, fetchMarkets, fetchPages, fetchOwners, fetchKPIs, fetchTestTypes, fetchProducts } from "@/lib/airtable"
+import { fetchExperimentations, fetchMarkets, fetchPages, fetchOwners, fetchKPIs, fetchTestTypes, fetchTypes, fetchProducts } from "@/lib/airtable"
 import { airtableCache } from "@/lib/cache"
 
 export interface AirtableRecord {
@@ -224,6 +224,9 @@ export function useExperimentation(options: {
   const [kpis, setKpis] = useState<{id: string, name: string}[]>([])
   const [pages, setPages] = useState<{id: string, name: string}[]>([])
   const [products, setProducts] = useState<{id: string, name: string}[]>([])
+  const [owners, setOwners] = useState<OwnerRef[]>([])
+  const [testTypes, setTestTypes] = useState<{id: string, name: string}[]>([])
+  const [types, setTypes] = useState<{id: string, name: string}[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -235,13 +238,14 @@ export function useExperimentation(options: {
       }
       
       // Récupérer les données d'Airtable
-      const [experimentations, markets, pages, owners, kpis, testTypes, products] = await Promise.all([
+      const [experimentations, markets, pages, owners, kpis, testTypes, types, products] = await Promise.all([
         fetchExperimentations(),
         fetchMarkets(),
         fetchPages(),
         fetchOwners(),
         fetchKPIs(),
         fetchTestTypes(),
+        fetchTypes(),
         fetchProducts()
       ])
 
@@ -550,6 +554,9 @@ export function useExperimentation(options: {
         setKpis(kpis)
         setPages(pages)
         setProducts(products)
+        setOwners(owners)
+        setTestTypes(testTypes)
+        setTypes(types)
       }
 
       // Traitement spécifique pour Timeline
@@ -685,9 +692,12 @@ export function useExperimentation(options: {
       kpis,
       pages,
       products,
-      loading,
-      error,
-      forceCacheSync
+      owners,
+              testTypes,
+        types,
+        loading,
+        error,
+        forceCacheSync
     }
   }
 } 

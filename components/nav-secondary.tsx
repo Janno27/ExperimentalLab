@@ -11,6 +11,7 @@ import {
 
 export function NavSecondary({
   items,
+  onSettingsOpen,
   ...props
 }: {
   items: {
@@ -18,6 +19,7 @@ export function NavSecondary({
     url: string
     icon: LucideIcon
   }[]
+  onSettingsOpen?: () => void
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   return (
     <SidebarGroup {...props}>
@@ -25,11 +27,17 @@ export function NavSecondary({
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild size="sm">
-                <a href={item.url}>
-                  <item.icon />
-                  <span>{item.title}</span>
-                </a>
+              <SidebarMenuButton 
+                size="sm" 
+                onClick={() => {
+                  if (item.title === "Settings" && onSettingsOpen) {
+                    onSettingsOpen()
+                  }
+                }}
+                className="cursor-pointer"
+              >
+                <item.icon />
+                <span>{item.title}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
