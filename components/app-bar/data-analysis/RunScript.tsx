@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { CheckCircle, Circle, AlertCircle, Loader2 } from 'lucide-react'
+import { CheckCircle, AlertCircle, Rocket, Sparkles, Target, Trophy } from 'lucide-react'
 import { analysisAPI, AnalysisConfig, AnalysisResults } from '@/lib/api/analysis-api'
 import { prepareAnalysisConfig, enrichAnalysisResults } from '@/lib/api/analysis-api-transformer'
 
@@ -167,119 +167,214 @@ export function RunScript({
     }
   }, [currentStep])
 
+  const getStepMessage = () => {
+    switch (currentStep) {
+      case 'queued':
+        return "🚀 Preparing for data liftoff..."
+      case 'processing':
+        if (elapsedTime < 5) return "🔥 Igniting statistical engines..."
+        if (elapsedTime < 15) return "📊 Crunching numbers at light speed..."
+        if (elapsedTime < 30) return "🧮 Computing confidence intervals..."
+        if (elapsedTime < 45) return "📈 Analyzing conversion patterns..."
+        return "🎯 Fine-tuning the results..."
+      case 'completed':
+        return "🎉 Mission accomplished! Data has landed!"
+      case 'failed':
+        return "💥 Houston, we have a problem..."
+      default:
+        return "🚀 Ready for takeoff..."
+    }
+  }
+
+  const getRocketPosition = () => {
+    if (currentStep === 'queued') return 'translate-y-0'
+    if (currentStep === 'processing') {
+      if (elapsedTime < 10) return '-translate-y-12'
+      if (elapsedTime < 20) return '-translate-y-24'
+      if (elapsedTime < 30) return '-translate-y-36'
+      return '-translate-y-48'
+    }
+    if (currentStep === 'completed') return '-translate-y-64'
+    return 'translate-y-0'
+  }
+
   return (
     <div className="flex h-full w-full">
-      {/* Contenu principal - full width sans sidebar */}
       <div className="flex-1 flex flex-col">
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="w-full max-w-4xl mx-auto py-8 px-6">
-            <div className="space-y-8">
+            <div className="space-y-12">
               {/* Header */}
               <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Running A/B Test Analysis</h3>
-                <p className="text-sm text-gray-600">Please wait while we process your data...</p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">🚀 A/B Test Analysis Mission</h3>
+                <p className="text-lg text-gray-600">Launching your data into the stratosphere of insights!</p>
               </div>
 
-              {/* Progress Section */}
-              <div className="space-y-6">
-                {/* Current Step */}
-                <div className="text-center">
-                  <div className="inline-flex items-center gap-3 mb-4">
-                    {currentStep === 'queued' && <Circle className="w-6 h-6 text-gray-400" />}
-                    {currentStep === 'processing' && <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />}
-                    {currentStep === 'completed' && <CheckCircle className="w-6 h-6 text-green-600" />}
-                    {currentStep === 'failed' && <AlertCircle className="w-6 h-6 text-red-600" />}
-                    
-                    <span className="text-sm font-medium text-gray-900 capitalize">
-                      {currentStep === 'queued' && 'Queued'}
-                      {currentStep === 'processing' && 'Processing'}
-                      {currentStep === 'completed' && 'Completed'}
-                      {currentStep === 'failed' && 'Failed'}
-                    </span>
-                  </div>
-                  
-                  {/* Progress Bar */}
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
-                      style={{ width: `${progress}%` }}
-                    ></div>
-                  </div>
-                  
-                  <p className="text-xs text-gray-500">{progress}% Complete</p>
+              {/* Rocket Animation Section */}
+              <div className="relative h-80 bg-gradient-to-b from-blue-100 via-blue-50 to-white rounded-2xl overflow-hidden border-2 border-blue-200">
+                {/* Stars Background */}
+                <div className="absolute inset-0">
+                  {[...Array(20)].map((_, i) => (
+                    <div
+                      key={i}
+                      className={`absolute w-1 h-1 bg-yellow-300 rounded-full animate-pulse`}
+                      style={{
+                        left: `${Math.random() * 100}%`,
+                        top: `${Math.random() * 60}%`,
+                        animationDelay: `${Math.random() * 2}s`
+                      }}
+                    />
+                  ))}
                 </div>
 
-                {/* Status Details */}
-                {currentStep === 'processing' && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                      <span className="text-sm font-medium text-blue-900">Analysis in Progress</span>
-                    </div>
-                    <p className="text-xs text-blue-700">
-                      Elapsed time: {elapsedTime.toFixed(1)}s
-                    </p>
-                  </div>
-                )}
+                {/* Clouds */}
+                <div className="absolute bottom-0 left-0 w-full h-32 opacity-30">
+                  <div className="absolute bottom-8 left-4 w-16 h-8 bg-white rounded-full"></div>
+                  <div className="absolute bottom-12 left-12 w-20 h-6 bg-white rounded-full"></div>
+                  <div className="absolute bottom-6 right-8 w-24 h-10 bg-white rounded-full"></div>
+                  <div className="absolute bottom-16 right-16 w-18 h-7 bg-white rounded-full"></div>
+                </div>
 
-                {/* Results Preview */}
-                {currentStep === 'completed' && results && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center justify-center gap-2 mb-3">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      <span className="text-sm font-medium text-green-900">Analysis Completed Successfully!</span>
+                {/* Rocket */}
+                <div className={`absolute bottom-8 left-1/2 transform -translate-x-1/2 transition-all duration-1000 ease-out ${getRocketPosition()}`}>
+                  <div className="relative">
+                    {/* Rocket Body */}
+                    <div className="w-12 h-20 bg-gradient-to-b from-red-500 to-red-600 rounded-t-full relative">
+                      {/* Rocket Details */}
+                      <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-yellow-300 rounded-full"></div>
+                      <div className="absolute top-6 left-1 w-2 h-6 bg-blue-600 rounded-r-full"></div>
+                      <div className="absolute top-6 right-1 w-2 h-6 bg-blue-600 rounded-l-full"></div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-green-700">
-                          {results.overall_results?.total_variations || 0}
-                        </div>
-                        <div className="text-xs text-green-600">Variations</div>
+                    {/* Rocket Fins */}
+                    <div className="absolute -bottom-2 -left-2 w-4 h-6 bg-gray-600 transform rotate-12"></div>
+                    <div className="absolute -bottom-2 -right-2 w-4 h-6 bg-gray-600 transform -rotate-12"></div>
+                    
+                    {/* Fire Trail */}
+                    {(currentStep === 'processing' || currentStep === 'queued') && (
+                      <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2">
+                        <div className="w-6 h-8 bg-gradient-to-b from-orange-400 via-red-500 to-yellow-300 rounded-b-full animate-pulse"></div>
+                        <div className="w-4 h-6 bg-gradient-to-b from-yellow-300 to-transparent rounded-b-full mx-auto animate-bounce"></div>
                       </div>
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-green-700">
-                          {results.overall_results?.total_users?.toLocaleString() || 0}
-                        </div>
-                        <div className="text-xs text-green-600">Total Users</div>
+                    )}
+                    
+                    {/* Success Sparkles */}
+                    {currentStep === 'completed' && (
+                      <div className="absolute -top-4 -left-4 w-8 h-8">
+                        <Sparkles className="w-6 h-6 text-yellow-400 animate-spin" />
                       </div>
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-green-700">
-                          {results.overall_results?.significant_metrics || 0}/{results.overall_results?.total_metrics || 0}
-                        </div>
-                        <div className="text-xs text-green-600">Significant Metrics</div>
-                      </div>
-                    </div>
+                    )}
                   </div>
-                )}
+                </div>
 
-                {/* Error Display */}
-                {currentStep === 'failed' && error && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <AlertCircle className="w-5 h-5 text-red-600" />
-                      <span className="text-sm font-medium text-red-900">Analysis Failed</span>
-                    </div>
-                    <p className="text-sm text-red-700">{error}</p>
+                {/* Mission Control Panel */}
+                <div className="absolute top-4 right-4 bg-gray-800 rounded-lg p-3 text-white text-xs font-mono">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`w-2 h-2 rounded-full ${currentStep === 'failed' ? 'bg-red-500' : 'bg-green-400 animate-pulse'}`}></div>
+                    <span>MISSION CONTROL</span>
                   </div>
-                )}
+                  <div>T+ {elapsedTime}s</div>
+                </div>
               </div>
+
+              {/* Status Message */}
+              <div className="text-center">
+                <div className="inline-flex items-center gap-3 mb-6 px-6 py-3 bg-blue-50 rounded-full border border-blue-200">
+                  {currentStep === 'queued' && <Rocket className="w-6 h-6 text-blue-600" />}
+                  {currentStep === 'processing' && <Target className="w-6 h-6 text-orange-600 animate-pulse" />}
+                  {currentStep === 'completed' && <Trophy className="w-6 h-6 text-green-600" />}
+                  {currentStep === 'failed' && <AlertCircle className="w-6 h-6 text-red-600" />}
+                  
+                  <span className="text-lg font-semibold text-gray-800">
+                    {getStepMessage()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Mission Phases */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {[
+                  { phase: "Pre-flight", icon: "🔧", active: currentStep === 'queued' },
+                  { phase: "Launch", icon: "🚀", active: currentStep === 'processing' && elapsedTime < 15 },
+                  { phase: "Orbit", icon: "🌍", active: currentStep === 'processing' && elapsedTime >= 15 },
+                  { phase: "Landing", icon: "🎯", active: currentStep === 'completed' }
+                ].map((phase, index) => (
+                  <div key={index} className={`p-4 rounded-lg border-2 transition-all ${
+                    phase.active 
+                      ? 'border-blue-500 bg-blue-50 shadow-lg scale-105' 
+                      : 'border-gray-200 bg-gray-50'
+                  }`}>
+                    <div className="text-2xl text-center mb-2">{phase.icon}</div>
+                    <div className={`text-sm font-medium text-center ${
+                      phase.active ? 'text-blue-700' : 'text-gray-600'
+                    }`}>
+                      {phase.phase}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Results Preview */}
+              {currentStep === 'completed' && results && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6">
+                  <div className="flex items-center justify-center gap-3 mb-6">
+                    <Trophy className="w-8 h-8 text-green-600" />
+                    <span className="text-xl font-bold text-green-900">Mission Success! 🎉</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="text-center p-4 bg-white rounded-lg shadow-sm">
+                      <div className="text-3xl font-bold text-green-700 mb-1">
+                        {results.overall_results?.total_variations || 0}
+                      </div>
+                      <div className="text-sm text-green-600 font-medium">🎯 Variations Tested</div>
+                    </div>
+                    <div className="text-center p-4 bg-white rounded-lg shadow-sm">
+                      <div className="text-3xl font-bold text-green-700 mb-1">
+                        {results.overall_results?.total_users?.toLocaleString() || 0}
+                      </div>
+                      <div className="text-sm text-green-600 font-medium">👥 Users Analyzed</div>
+                    </div>
+                    <div className="text-center p-4 bg-white rounded-lg shadow-sm">
+                      <div className="text-3xl font-bold text-green-700 mb-1">
+                        {results.overall_results?.significant_metrics || 0}/{results.overall_results?.total_metrics || 0}
+                      </div>
+                      <div className="text-sm text-green-600 font-medium">📊 Significant Results</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error Display */}
+              {currentStep === 'failed' && error && (
+                <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
+                  <div className="flex items-center justify-center gap-3 mb-4">
+                    <AlertCircle className="w-8 h-8 text-red-600" />
+                    <span className="text-xl font-bold text-red-900">Mission Aborted! 💥</span>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-red-200">
+                    <p className="text-sm text-red-700 font-mono">{error}</p>
+                  </div>
+                </div>
+              )}
 
               {/* Navigation */}
               <div className="flex justify-center pt-6">
                 {currentStep === 'completed' ? (
                   <button
                     onClick={() => onNextStep && onNextStep(results!)}
-                    className="px-6 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                    className="px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-lg font-semibold rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg flex items-center gap-3"
                   >
-                    View Full Results
+                    <Trophy className="w-5 h-5" />
+                    Explore Mission Results
                   </button>
                 ) : currentStep === 'failed' ? (
                   <button
                     onClick={startAnalysis}
-                    className="px-6 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg flex items-center gap-3"
                   >
-                    Retry Analysis
+                    <Rocket className="w-5 h-5" />
+                    Retry Mission
                   </button>
                 ) : null}
               </div>
