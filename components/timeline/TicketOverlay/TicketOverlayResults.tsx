@@ -14,9 +14,10 @@ interface TicketOverlayResultsProps {
   onDataRefresh?: () => Promise<void>
   canEdit: boolean
   canView: boolean
+  hideCompleteProject?: boolean
 }
 
-export function TicketOverlayResults({ project, expanded, onToggleExpanded, onConfetti, onDataRefresh, canEdit }: TicketOverlayResultsProps) {
+export function TicketOverlayResults({ project, expanded, onToggleExpanded, onConfetti, onDataRefresh, canEdit, hideCompleteProject = false }: TicketOverlayResultsProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   
@@ -800,7 +801,7 @@ export function TicketOverlayResults({ project, expanded, onToggleExpanded, onCo
                     
                     {/* Dropdown */}
                     {showDropdown && activeDropdown === 'conclusive' && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-32 overflow-y-auto">
                         <div className="p-1">
                           <button
                             onClick={() => handleConclusiveChange('Conclusive')}
@@ -843,7 +844,7 @@ export function TicketOverlayResults({ project, expanded, onToggleExpanded, onCo
                     
                     {/* Dropdown */}
                     {showDropdown && activeDropdown === 'winLoss' && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-32 overflow-y-auto">
                         <div className="p-1">
                           <button
                             onClick={() => handleWinLossChange('Win')}
@@ -875,38 +876,42 @@ export function TicketOverlayResults({ project, expanded, onToggleExpanded, onCo
             </div>
           )}
 
-          {/* MARK AS DONE CTA */}
-          <div className="border-t border-gray-200 my-4"></div>
-          <div className="space-y-2">
-            <div className="text-xs font-medium text-gray-700">COMPLETE PROJECT</div>
-            <div className="relative group">
-              <button
-                onClick={handleMarkAsDone}
-                disabled={!canMarkAsDone || isDone || markAsDoneLoading || !canEdit || isEditing}
-                className={`w-full flex items-center justify-center gap-2 p-3 rounded-lg border transition-all ${
-                  canMarkAsDone && !isDone && canEdit && !isEditing
-                    ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 cursor-pointer'
-                    : 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
-                } ${markAsDoneLoading ? 'opacity-50' : ''}`}
-                title={getMarkAsDoneTooltip()}
-              >
-                {markAsDoneLoading ? (
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-green-600 rounded-full animate-spin"></div>
-                ) : (
-                  <CheckCircle className={`w-4 h-4 ${canMarkAsDone && !isDone && !isEditing ? 'text-green-600' : 'text-gray-400'}`} />
-                )}
-                <span className="text-xs font-medium">
-                  {isDone ? 'Project Completed' : 'Mark as Done'}
-                </span>
-              </button>
-              
-              {/* Tooltip au hover */}
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] max-w-sm break-words">
-                {getMarkAsDoneTooltip()}
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+          {/* MARK AS DONE CTA - Hidden if hideCompleteProject is true */}
+          {!hideCompleteProject && (
+            <>
+              <div className="border-t border-gray-200 my-4"></div>
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-gray-700">COMPLETE PROJECT</div>
+                <div className="relative group">
+                  <button
+                    onClick={handleMarkAsDone}
+                    disabled={!canMarkAsDone || isDone || markAsDoneLoading || !canEdit || isEditing}
+                    className={`w-full flex items-center justify-center gap-2 p-3 rounded-lg border transition-all ${
+                      canMarkAsDone && !isDone && canEdit && !isEditing
+                        ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 cursor-pointer'
+                        : 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
+                    } ${markAsDoneLoading ? 'opacity-50' : ''}`}
+                    title={getMarkAsDoneTooltip()}
+                  >
+                    {markAsDoneLoading ? (
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-green-600 rounded-full animate-spin"></div>
+                    ) : (
+                      <CheckCircle className={`w-4 h-4 ${canMarkAsDone && !isDone && !isEditing ? 'text-green-600' : 'text-gray-400'}`} />
+                    )}
+                    <span className="text-xs font-medium">
+                      {isDone ? 'Project Completed' : 'Mark as Done'}
+                    </span>
+                  </button>
+                  
+                  {/* Tooltip au hover */}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] max-w-sm break-words">
+                    {getMarkAsDoneTooltip()}
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       )}
 

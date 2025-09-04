@@ -12,6 +12,7 @@ interface KanbanBoardProps {
   kpis: { id: string, name: string }[]
   pages: { id: string, name: string }[]
   products: { id: string, name: string }[]
+  onDataRefresh?: () => Promise<void>
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -40,7 +41,7 @@ function setColumnFoldState(status: string, folded: boolean) {
   localStorage.setItem(`kanban_fold_${status}`, folded ? '1' : '0')
 }
 
-export function KanbanBoard({ cards, kpis, pages, products }: KanbanBoardProps) {
+export function KanbanBoard({ cards, kpis, pages, products, onDataRefresh }: KanbanBoardProps) {
   const [folded, setFolded] = useState<Record<string, boolean>>({})
   const [localCards, setLocalCards] = useState(cards)
   const boardRef = React.useRef<HTMLDivElement>(null)
@@ -192,7 +193,7 @@ export function KanbanBoard({ cards, kpis, pages, products }: KanbanBoardProps) 
                                 zIndex: snapshot.isDragging ? 10 : 'auto',
                               }}
                             >
-                              <KanbanCard card={card} kpis={kpis} pages={pages} products={products} />
+                              <KanbanCard card={card} kpis={kpis} pages={pages} products={products} onDataRefresh={onDataRefresh} />
                             </div>
                           )}
                         </Draggable>

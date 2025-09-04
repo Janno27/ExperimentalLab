@@ -25,7 +25,8 @@ export default function Kanban({ searchValue = "" }: KanbanProps) {
     pages = [], 
     products = [], 
     loading = false, 
-    error = null 
+    error = null,
+    refreshData
   } = result
 
   const filteredCards = useMemo(() => {
@@ -104,7 +105,16 @@ export default function Kanban({ searchValue = "" }: KanbanProps) {
     <div className="p-2">
       {loading && <KanbanSkeleton />}
       {error && <div className="text-center text-red-500 py-8">{error}</div>}
-      {!loading && !error && <KanbanBoard cards={filteredCards} columns={columns} kpis={kpis} pages={pages} products={products} />}
+      {!loading && !error && (
+        <KanbanBoard 
+          cards={filteredCards} 
+          columns={columns} 
+          kpis={kpis} 
+          pages={pages} 
+          products={products}
+          onDataRefresh={refreshData}
+        />
+      )}
     </div>
   )
 } 

@@ -169,6 +169,15 @@ export function TicketOverlayProperties({ project, expanded, onToggleExpanded, c
   const [showStatusDropdown, setShowStatusDropdown] = useState(false)
   const statusDropdownRef = useRef<HTMLDivElement>(null)
 
+  // Réinitialiser l'état quand le projet change
+  useEffect(() => {
+    setEditedProject(project)
+    setStartDateStr(project.startDate.toISOString().slice(0, 10))
+    setEstimatedTimeStr(String(project.estimatedTime ?? ''))
+    setIsEditing(false) // Sortir du mode édition si on était en train d'éditer
+    setSelectedOwnerId(null) // Réinitialiser la sélection d'owner
+  }, [project.id]) // Se déclenche quand l'ID du projet change
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node

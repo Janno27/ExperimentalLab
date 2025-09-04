@@ -20,7 +20,7 @@ interface StepPropertiesProps {
 }
 
 export function StepProperties({ formData, updateFormData }: StepPropertiesProps) {
-  const { markets = [], owners = [], kpis = [], pages = [], products = [], testTypes = [] } = useExperimentation({ 
+  const { markets = [], owners = [], testTypes = [] } = useExperimentation({ 
     useAirtable: true, 
     timelineMode: false 
   })
@@ -61,7 +61,7 @@ export function StepProperties({ formData, updateFormData }: StepPropertiesProps
               </SelectTrigger>
               <SelectContent>
                 {owners.map((owner) => (
-                  <SelectItem key={owner.id} value={owner.name} className="cursor-pointer text-xs">
+                  <SelectItem key={owner.id} value={owner.id} className="cursor-pointer text-xs">
                     {owner.name}
                   </SelectItem>
                 ))}

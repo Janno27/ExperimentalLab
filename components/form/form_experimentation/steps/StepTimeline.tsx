@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon, Play } from 'lucide-react'
-import { ABTestCalculator } from '@/components/calculator/calculator'
-import { useAuth } from '@/hooks/useAuth'
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon, Play, Settings, Loader2 } from 'lucide-react'
+import { ABTestCalculator } from '@/components/app-bar/calculator/calculator'
+
 import { estimateABTestDuration, type ABTestResult } from '@/lib/ab-test-calculator'
 
 interface StepTimelineProps {
@@ -79,6 +79,24 @@ function DatePicker({
     setIsOpen(false)
   }
 
+  // Fermer le DatePicker quand on clique en dehors
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (isOpen && !target.closest('.datepicker-container')) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
+
 
 
   const isSelectedDate = (year: number, month: number, day: number) => {
@@ -135,11 +153,11 @@ function DatePicker({
   }
 
   return (
-    <div className="relative">
+    <div className="relative datepicker-container">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full h-6 text-xs border border-gray-300 rounded-md px-2 text-left bg-white hover:bg-gray-50 transition-colors cursor-pointer"
+        className="w-full h-6 text-xs px-2 text-right  bg-white hover:bg-gray-50 transition-colors cursor-pointer"
       >
         {value ? selectedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select date'}
       </button>
@@ -222,6 +240,7 @@ export function StepTimeline({ formData, updateFormData }: StepTimelineProps) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
   const [calculatorPosition, setCalculatorPosition] = useState({ x: 0, y: 0 })
   const [estimationResult, setEstimationResult] = useState<ABTestResult | null>(null)
+  const [isCalculating, setIsCalculating] = useState(false)
 
   // Calcul automatique du conversion rate
   useEffect(() => {
@@ -244,6 +263,16 @@ export function StepTimeline({ formData, updateFormData }: StepTimelineProps) {
       updateFormData('statisticalConfidence', '85')
     }
   }, [formData.trafficAllocation, formData.statisticalConfidence, updateFormData])
+
+  // Mettre à jour endDate quand expectedLaunch change et qu'on a une estimation
+  useEffect(() => {
+    if (formData.expectedLaunch && estimationResult) {
+      const startDate = new Date(formData.expectedLaunch)
+      const endDate = new Date(startDate)
+      endDate.setDate(startDate.getDate() + estimationResult.durationDays)
+      updateFormData('endDate', endDate.toISOString().split('T')[0])
+    }
+  }, [formData.expectedLaunch, estimationResult, updateFormData])
 
   // Calcul du conversion rate cible basé sur MDE (uplift relatif)
   const getTargetConversionRate = () => {
@@ -282,10 +311,15 @@ export function StepTimeline({ formData, updateFormData }: StepTimelineProps) {
     setIsCalculatorOpen(true)
   }
 
-  const handleRunEstimation = () => {
+  const handleRunEstimation = async () => {
     if (!formData.audience || !formData.conversion || !formData.mde || !formData.trafficAllocation) {
       return
     }
+
+    setIsCalculating(true)
+
+    // Simulation d'un délai de calcul
+    await new Promise(resolve => setTimeout(resolve, 1500))
 
     const audiencePerDay = parseFloat(formData.audience)
     const conversionsPerDay = parseFloat(formData.conversion)
@@ -317,6 +351,8 @@ export function StepTimeline({ formData, updateFormData }: StepTimelineProps) {
       }
     } catch (error) {
       console.error('Erreur lors du calcul:', error)
+    } finally {
+      setIsCalculating(false)
     }
   }
 
@@ -423,13 +459,15 @@ export function StepTimeline({ formData, updateFormData }: StepTimelineProps) {
 
           <div className="space-y-3">
             <Label className="text-xs font-medium">Traffic Allocation *</Label>
-            <Slider
-              value={parseInt(formData.trafficAllocation) || 100}
-              onChange={(value) => updateFormData('trafficAllocation', value.toString())}
-              min={0}
-              max={100}
-              step={5}
-            />
+            <div className="flex items-center">
+              <Slider
+                value={parseInt(formData.trafficAllocation) || 100}
+                onChange={(value) => updateFormData('trafficAllocation', value.toString())}
+                min={0}
+                max={100}
+                step={5}
+              />
+            </div>
           </div>
         </div>
 
@@ -454,27 +492,39 @@ export function StepTimeline({ formData, updateFormData }: StepTimelineProps) {
             </div>
           </div>
 
-          {/* DatePickers sous la timeline */}
-          <div className="grid grid-cols-2 gap-6">
-            <DatePicker
-              value={formData.expectedLaunch || ''}
-              onChange={(date) => updateFormData('expectedLaunch', date)}
-            />
-            <DatePicker
-              value={formData.endDate || ''}
-              onChange={(date) => updateFormData('endDate', date)}
-            />
+          {/* DatePickers sous la timeline - alignés avec les labels */}
+          <div className="flex justify-between">
+            <div className="w-32">
+              <DatePicker
+                value={formData.expectedLaunch || ''}
+                onChange={(date) => updateFormData('expectedLaunch', date)}
+              />
+            </div>
+            <div className="w-32">
+              <DatePicker
+                value={formData.endDate || ''}
+                onChange={(date) => updateFormData('endDate', date)}
+              />
+            </div>
           </div>
 
           {/* CTA Run Estimation */}
-          <div className="flex justify-center">
+          <div className="flex justify-start">
             <button
               onClick={handleRunEstimation}
-              disabled={!formData.audience || !formData.conversion || !formData.mde || !formData.trafficAllocation}
+              disabled={!formData.audience || !formData.conversion || !formData.mde || !formData.trafficAllocation || isCalculating}
               className="flex items-center gap-2 text-xs text-gray-500 hover:text-purple-600 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title={!formData.audience || !formData.conversion || !formData.mde || !formData.trafficAllocation ? 
+                "Veuillez remplir Audience, Conversion, MDE et Traffic Allocation pour lancer l'estimation" : 
+                "Lancer l'estimation de durée du test"
+              }
             >
-              <Play className="w-3 h-3" />
-              <span>Run Estimation</span>
+              {isCalculating ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Play className="w-3 h-3" />
+              )}
+              <span>{isCalculating ? 'Calculating...' : 'Run Estimation'}</span>
             </button>
           </div>
 
@@ -494,6 +544,7 @@ export function StepTimeline({ formData, updateFormData }: StepTimelineProps) {
             onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
             className="flex items-center gap-2 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors cursor-pointer"
           >
+            <Settings className="w-3 h-3" />
             Advanced
             {isAdvancedOpen ? (
               <ChevronDown className="w-3 h-3" />

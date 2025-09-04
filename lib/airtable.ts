@@ -1,6 +1,16 @@
 // lib/airtable.ts
 
 import { airtableCache } from './cache'
+import { 
+  MDE_OPTIONS, 
+  STATISTICAL_CONFIDENCE_OPTIONS, 
+  TRAFFIC_ALLOCATION_OPTIONS, 
+  DEVICES_OPTIONS,
+  TYPE_OPTIONS,
+  ROLE_OPTIONS,
+  TOOL_OPTIONS,
+  SCOPE_OPTIONS
+} from '@/constants/airtable-options'
 
 interface AirtableRecord {
   id: string;
@@ -427,7 +437,7 @@ export async function fetchTypes() {
   const types = Array.from(new Set(records.map(r => (r.fields['Type'] as string) || '').filter(Boolean)));
   
   // Créer un format cohérent avec les autres fonctions
-  const typesData = types.map((type, index) => ({
+  const typesData = types.map((type) => ({
     id: type, // Utiliser le nom comme ID pour la cohérence
     name: type
   }));
@@ -436,4 +446,184 @@ export async function fetchTypes() {
   airtableCache.set('types', typesData)
   
   return typesData
+}
+
+interface FormData {
+  // Properties
+  role: string
+  owner: string
+  market: string
+  scope: string
+  tool: string
+  testType: string[]
+  
+  // Definition
+  shortName: string
+  type: string
+  hypothesis: string
+  context: string
+  description: string
+  control: File | null
+  variation1: File | null
+  
+  // Timeline
+  audience: string
+  conversion: string
+  conversionRate: string
+  mde: string
+  mdeCustom: string
+  trafficAllocation: string
+  expectedLaunch: string
+  endDate: string
+  statisticalConfidence: string
+  power: string
+  
+  // Audience
+  devices: string
+  page: string
+  product: string
+  mainKPI: string
+  kpi2: string
+  kpi3: string
+  
+  // Success Criteria
+  successCriteria1: string
+  successCriteria2: string
+  successCriteria3: string
+}
+
+// Fonction de validation des valeurs selon les options Airtable
+function validateAirtableValues(formData: FormData): Record<string, unknown> {
+  // Validation des valeurs selon les options autorisées
+  const validateSelectValue = (value: string, allowedValues: readonly string[], fieldName: string) => {
+    if (!allowedValues.includes(value)) {
+      console.warn(`Warning: ${fieldName} value "${value}" is not in allowed values:`, allowedValues);
+      // Retourner la première valeur autorisée par défaut
+      return allowedValues[0];
+    }
+    return value;
+  };
+
+  const fields: Record<string, unknown> = {
+    // Champs obligatoires
+    'Short Name': formData.shortName,
+    
+    // Propriétés de base - mapping exact selon Airtable
+    'Role': validateSelectValue(formData.role, ROLE_OPTIONS, 'Role'),
+    'Owner': formData.owner ? [formData.owner] : [], // multipleRecordLinks
+    'Market': formData.market ? [formData.market] : [], // multipleRecordLinks
+    'Scope': validateSelectValue(formData.scope, SCOPE_OPTIONS, 'Scope'),
+    'Tool:': validateSelectValue(formData.tool, TOOL_OPTIONS, 'Tool'),
+    'Test Type': formData.testType, // multipleRecordLinks
+    
+    // Définition
+    'Type': validateSelectValue(formData.type, TYPE_OPTIONS, 'Type'),
+    'Hypothesis': formData.hypothesis,
+    'Context': formData.context,
+    'Description': formData.description,
+    
+    // Timeline - mapping exact selon Airtable
+    'Audience': parseFloat(formData.audience) || 0, // number
+    'Conversion': parseFloat(formData.conversionRate) || 0, // number
+    'MDE': (() => {
+      if (formData.mde === 'custom') {
+        // Pour les valeurs custom, essayer de les faire correspondre aux options autorisées
+        const customValue = formData.mdeCustom || '';
+        if (MDE_OPTIONS.includes(customValue as typeof MDE_OPTIONS[number])) {
+          return customValue;
+        }
+        // Si pas de correspondance, utiliser la première option autorisée
+        console.warn(`Warning: Custom MDE value "${customValue}" not in allowed values, using default`);
+        return MDE_OPTIONS[0];
+      }
+      return validateSelectValue(formData.mde, MDE_OPTIONS, 'MDE');
+    })(),
+    'Traffic allocation': validateSelectValue(formData.trafficAllocation + '%', TRAFFIC_ALLOCATION_OPTIONS, 'Traffic allocation'),
+    'Statistical Confidence': validateSelectValue(formData.statisticalConfidence + '%', STATISTICAL_CONFIDENCE_OPTIONS, 'Statistical Confidence'),
+    'Start Date': formData.expectedLaunch, // date
+    'Estimated Time': (() => {
+      // Calculer la différence en jours entre startDate et endDate
+      if (formData.expectedLaunch && formData.endDate) {
+        const startDate = new Date(formData.expectedLaunch)
+        const endDate = new Date(formData.endDate)
+        const diffTime = Math.abs(endDate.getTime() - startDate.getTime())
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        return diffDays
+      }
+      return 0
+    })(),
+    
+    // Audience - mapping exact selon Airtable
+    'Devices': validateSelectValue(formData.devices, DEVICES_OPTIONS, 'Devices'),
+    'Page': formData.page ? [formData.page] : [], // multipleRecordLinks
+    'Product': formData.product ? [formData.product] : [], // multipleRecordLinks
+    'Main KPI': formData.mainKPI ? [formData.mainKPI] : [], // multipleRecordLinks
+    'KPI #2': formData.kpi2 ? [formData.kpi2] : [], // multipleRecordLinks
+    'KPI #3': formData.kpi3 ? [formData.kpi3] : [], // multipleRecordLinks
+    
+    // Critères de succès
+    'Success Criteria #1': formData.successCriteria1,
+    'Success Criteria #2': formData.successCriteria2,
+    'Success Criteria #3': formData.successCriteria3,
+    
+    // Statut
+    'Status': 'To be prioritized', // singleSelect avec options prédéfinies
+  };
+
+  // Enlever les champs vides pour éviter les erreurs Airtable
+  Object.keys(fields).forEach(key => {
+    const value = fields[key];
+    if (value === '' || value === null || value === undefined || 
+        (Array.isArray(value) && value.length === 0)) {
+      delete fields[key];
+    }
+  });
+
+  return fields;
+}
+
+export async function createExperimentationRecord(formData: FormData) {
+  const url = AIRTABLE_API_URL;
+  
+  // Utiliser la fonction de validation
+  const fields = validateAirtableValues(formData);
+
+  // Log pour debug
+  console.log('Données envoyées à Airtable:', JSON.stringify({ fields }, null, 2))
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      fields 
+    }),
+  });
+  
+  if (!res.ok) {
+    let errorMessage = 'Failed to create experimentation record'
+    try {
+      const errorData = await res.json()
+      console.error('Airtable error response:', errorData)
+      console.error('HTTP Status:', res.status, res.statusText)
+      console.error('Fields being sent:', fields)
+      
+      if (errorData.error && errorData.error.message) {
+        errorMessage = `Airtable error: ${errorData.error.message}`
+      } else if (errorData.error) {
+        errorMessage = `Airtable error: ${JSON.stringify(errorData.error)}`
+      }
+    } catch (parseError) {
+      console.error('Could not parse Airtable error response:', parseError)
+    }
+    
+    throw new Error(errorMessage)
+  }
+  
+  // Invalider le cache des expérimentations
+  airtableCache.invalidate('experimentations')
+  
+  return res.json();
 } 

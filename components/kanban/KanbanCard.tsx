@@ -1,17 +1,64 @@
 import React, { useState } from 'react'
-import type { Experimentation } from '@/hooks/useExperimentation'
+import type { Experimentation, Project } from '@/hooks/useExperimentation'
 import { ChevronDown, ChevronUp, FlaskConical, Sparkles, Wrench } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-} from '@/components/ui/dialog'
-import KanbanTicket from './KanbanTicket'
+import { TicketOverlay } from '@/components/timeline/TicketOverlay'
 
 interface KanbanCardProps {
   card: Experimentation
   kpis: { id: string, name: string }[]
   pages: { id: string, name: string }[]
   products: { id: string, name: string }[]
+  onDataRefresh?: () => Promise<void>
+}
+
+// Fonction pour convertir Experimentation en Project
+function convertExperimentationToProject(card: Experimentation): Project {
+  return {
+    id: card.id,
+    country: card.market?.[0]?.name || '',
+    section: card.section || '',
+    title: card.name,
+    status: card.status as Project['status'],
+    startDate: card.startDate ? new Date(card.startDate) : new Date(),
+    endDate: card.endDate ? new Date(card.endDate) : new Date(),
+    progress: 0,
+    owner: card.owner?.[0]?.name || '',
+    analysisOwner: card['Analysis Owner']?.[0]?.name || '',
+    mainKPI: card['Main KPI']?.[0]?.name || '',
+    testType: card.Type || card.type || '',
+    estimatedTime: card['Estimated Time'] || 0,
+    mde: card.MDE || '',
+    successCriteria1: card['Success Criteria #1'] || '',
+    successCriteria2: card['Success Criteria #2'] || '',
+    successCriteria3: card['Success Criteria #3'] || '',
+    readyForAnalysisDate: card['Date - Ready for Analysis'] ? new Date(card['Date - Ready for Analysis']) : undefined,
+    analysisStartDate: card['Date - Analysis'] ? new Date(card['Date - Analysis']) : undefined,
+    analysisEndDate: card['Date - Analysis'] ? new Date(card['Date - Analysis']) : undefined,
+    doneDate: card['Date - Done'] ? new Date(card['Date - Done']) : undefined,
+    timeFromReadyToAnalysis: card['Days from Waiting for Analysis to Analysing'],
+    timeFromAnalysisToDone: card['Days from Analysing to Done'],
+    tool: card['Tool:'] || '',
+    scope: card.scope || '',
+    audience: card.Audience || '',
+    conversion: card.Conversion || '',
+    existingRate: card['Existing % Rate'] || card['Existing %'] || '',
+    trafficAllocation: card['Traffic allocation'] || card['Traffic Allocation'] || '',
+    page: card.Page?.[0]?.name || '',
+    product: card.Product?.[0]?.name || '',
+    devices: card.Devices || '',
+    hypothesis: card.Hypothesis || '',
+    description: card.Description || '',
+    context: card.Context || '',
+    control: card.Control,
+    variation1: card['Variation 1'],
+    metThreshold1: card['Met Threshold - Success Criteria #1'],
+    metThreshold2: card['Met Threshold - Success Criteria #2'],
+    metThreshold3: card['Met Threshold - Success Criteria #3'],
+    learnings: card.Learnings || '',
+    nextSteps: card['Next Steps'] || '',
+    conclusive: card['Conclusive vs Non Conclusive'] || '',
+    winLoss: card['Win vs Loss'] || '',
+  }
 }
 
 function typeIcon(type?: string) {
@@ -22,9 +69,12 @@ function typeIcon(type?: string) {
   return null
 }
 
-export function KanbanCard({ card, kpis, pages, products }: KanbanCardProps) {
+export function KanbanCard({ card, onDataRefresh }: KanbanCardProps) {
   const [expanded, setExpanded] = useState(false)
   const [open, setOpen] = useState(false)
+  
+  const project = convertExperimentationToProject(card)
+  
   return (
     <>
       <div
@@ -66,11 +116,13 @@ export function KanbanCard({ card, kpis, pages, products }: KanbanCardProps) {
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
       </div>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl w-full">
-          <KanbanTicket card={card} kpis={kpis} pages={pages} products={products} />
-        </DialogContent>
-      </Dialog>
+      
+      <TicketOverlay 
+        project={project}
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        onDataRefresh={onDataRefresh}
+      />
     </>
   )
 } 

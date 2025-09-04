@@ -1,10 +1,10 @@
 "use client"
 import * as React from "react"
 import { useState, useEffect } from "react"
-import { Calculator } from "lucide-react"
+import { Calculator, BarChart3 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { ABTestCalculator } from '@/components/calculator'
-import { usePathname } from 'next/navigation'
+import { ABTestCalculator } from '@/components/app-bar/calculator'
+import { usePathname, useRouter } from 'next/navigation'
 
 type AppBarProps = {
   children?: React.ReactNode
@@ -15,17 +15,27 @@ type AppBarProps = {
 
 export function AppBar({ children, open: controlledOpen, setOpen: controlledSetOpen, onCalculatorStateChange }: AppBarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
   const [calculatorOpen, setCalculatorOpen] = useState(false)
   const [calculatorTriggerPosition, setCalculatorTriggerPosition] = useState({ x: 0, y: 0 })
+  const [isDataAnalysisPage, setIsDataAnalysisPage] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+  
   const open = controlledOpen !== undefined ? controlledOpen : uncontrolledOpen
   const setOpen = controlledSetOpen || setUncontrolledOpen
+  
+  // Gérer l'hydratation
+  useEffect(() => {
+    setIsMounted(true)
+    setIsDataAnalysisPage(pathname === '/data-analysis')
+  }, [pathname])
   
   // Désactiver l'app-bar sur la page de login
   const isLoginPage = pathname === '/login'
   
-  // L'app-bar reste ouvert si le calculateur est ouvert
-  const shouldStayOpen = open || calculatorOpen
+  // L'app-bar reste ouvert si le calculateur est ouvert ou si on est sur data-analysis
+  const shouldStayOpen = open || calculatorOpen || (isMounted && isDataAnalysisPage)
 
   // Notifier l'app-layout-client des changements d'état du calculateur
   useEffect(() => {
@@ -49,8 +59,8 @@ export function AppBar({ children, open: controlledOpen, setOpen: controlledSetO
         className={`fixed right-0 top-0 h-full z-40 flex flex-col transition-all duration-300 ease-in-out ${shouldStayOpen ? 'w-12' : 'w-6'} pointer-events-none`}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => {
-          // Ne pas fermer si le calculateur est ouvert
-          if (!calculatorOpen) {
+          // Ne pas fermer si le calculateur est ouvert ou si on est sur data-analysis
+          if (!calculatorOpen && !(isMounted && isDataAnalysisPage)) {
             setOpen(false)
           }
         }}
@@ -101,6 +111,23 @@ export function AppBar({ children, open: controlledOpen, setOpen: controlledSetO
               {calculatorOpen ? 'Fermer A/B Test Calculator' : 'A/B Test Calculator'}
             </TooltipContent>
           </Tooltip>
+
+          {/* Data Analysis Tool - Deuxième position */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button 
+                className={`${iconBtn} ${iconAnim} ${isMounted && isDataAnalysisPage ? 'bg-violet-100 scale-110 shadow-md' : ''}`} 
+                tabIndex={shouldStayOpen ? 0 : -1}
+                style={{ background: isMounted && isDataAnalysisPage ? 'rgb(243 232 255)' : 'transparent' }}
+                onClick={() => router.push('/data-analysis')}
+              >
+                <BarChart3 className={`w-4 h-4 ${isMounted && isDataAnalysisPage ? 'text-violet-800' : 'text-violet-700'}`} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" align="center">
+              {isMounted && isDataAnalysisPage ? 'Data Analysis Tool (Actif)' : 'Data Analysis Tool'}
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         {/* Content (actions ou widgets) */}
@@ -116,8 +143,10 @@ export function AppBar({ children, open: controlledOpen, setOpen: controlledSetO
         isOpen={calculatorOpen} 
         onClose={() => {
           setCalculatorOpen(false)
-          // Fermer aussi l'app-bar quand le calculateur se ferme
-          setOpen(false)
+          // Fermer aussi l'app-bar quand le calculateur se ferme (sauf si on est sur data-analysis)
+          if (!(isMounted && isDataAnalysisPage)) {
+            setOpen(false)
+          }
         }}
         triggerPosition={calculatorTriggerPosition}
       />
