@@ -52,6 +52,7 @@ export function RunScript({
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<AnalysisResults | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
+  const [animationDuration] = useState(() => Math.floor((Math.random() * 15 + 5) * 10) / 10) // 5.0-20.0 seconds with 1 decimal
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const startTimeRef = useRef<number>(Date.now())
@@ -120,6 +121,12 @@ export function RunScript({
       setError(null)
       setProgress(10)
       
+      // Start processing animation immediately
+      setTimeout(() => {
+        setCurrentStep('processing')
+        setProgress(30)
+      }, 1000)
+      
       // Transform config to API format
       const config: AnalysisConfig = prepareAnalysisConfig(
         data,
@@ -133,9 +140,11 @@ export function RunScript({
       )
       metricsRef.current = metrics
 
-      // Start analysis
-      const response = await analysisAPI.startAnalysis(config)
-      setProgress(20)
+      // Start analysis and wait for animation duration
+      const [response] = await Promise.all([
+        analysisAPI.startAnalysis(config),
+        new Promise(resolve => setTimeout(resolve, animationDuration * 1000))
+      ])
       
       // Start polling
       startPolling(response.job_id)
@@ -145,7 +154,7 @@ export function RunScript({
       setError(err instanceof Error ? err.message : 'Failed to start analysis')
       setCurrentStep('failed')
     }
-  }, [data, metrics, variationColumn, userColumn, dataType, confidenceLevel, statisticalMethod, multipleTestingCorrection, startPolling])
+  }, [data, metrics, variationColumn, userColumn, dataType, confidenceLevel, statisticalMethod, multipleTestingCorrection, startPolling, animationDuration])
 
   // Start analysis when component mounts
   useEffect(() => {
@@ -168,14 +177,16 @@ export function RunScript({
   }, [currentStep])
 
   const getStepMessage = () => {
+    const progressRatio = elapsedTime / animationDuration
+    
     switch (currentStep) {
       case 'queued':
         return "🚀 Preparing for data liftoff..."
       case 'processing':
-        if (elapsedTime < 5) return "🔥 Igniting statistical engines..."
-        if (elapsedTime < 15) return "📊 Crunching numbers at light speed..."
-        if (elapsedTime < 30) return "🧮 Computing confidence intervals..."
-        if (elapsedTime < 45) return "📈 Analyzing conversion patterns..."
+        if (progressRatio < 0.2) return "🔥 Igniting statistical engines..."
+        if (progressRatio < 0.4) return "📊 Crunching numbers at light speed..."
+        if (progressRatio < 0.6) return "🧮 Computing confidence intervals..."
+        if (progressRatio < 0.8) return "📈 Analyzing conversion patterns..."
         return "🎯 Fine-tuning the results..."
       case 'completed':
         return "🎉 Mission accomplished! Data has landed!"
@@ -189,12 +200,20 @@ export function RunScript({
   const getRocketPosition = () => {
     if (currentStep === 'queued') return 'translate-y-0'
     if (currentStep === 'processing') {
-      if (elapsedTime < 10) return '-translate-y-12'
-      if (elapsedTime < 20) return '-translate-y-24'
-      if (elapsedTime < 30) return '-translate-y-36'
+      const progressRatio = elapsedTime / animationDuration
+      const remainingTime = animationDuration - elapsedTime
+      
+      // Last 2 seconds: rocket flies away and disappears
+      if (remainingTime <= 2) {
+        return '-translate-y-96 scale-50 opacity-0'
+      }
+      
+      if (progressRatio < 0.25) return '-translate-y-12'
+      if (progressRatio < 0.5) return '-translate-y-24'
+      if (progressRatio < 0.75) return '-translate-y-36'
       return '-translate-y-48'
     }
-    if (currentStep === 'completed') return '-translate-y-64'
+    if (currentStep === 'completed') return '-translate-y-96 scale-50 opacity-0'
     return 'translate-y-0'
   }
 
@@ -211,13 +230,13 @@ export function RunScript({
               </div>
 
               {/* Rocket Animation Section */}
-              <div className="relative h-80 bg-gradient-to-b from-blue-100 via-blue-50 to-white rounded-2xl overflow-hidden border-2 border-blue-200">
+              <div className="relative h-80 bg-gradient-to-b from-gray-50 via-gray-25 to-white rounded-xl overflow-hidden border border-gray-200">
                 {/* Stars Background */}
                 <div className="absolute inset-0">
-                  {[...Array(20)].map((_, i) => (
+                  {[...Array(12)].map((_, i) => (
                     <div
                       key={i}
-                      className={`absolute w-1 h-1 bg-yellow-300 rounded-full animate-pulse`}
+                      className={`absolute w-1 h-1 bg-gray-300 rounded-full animate-pulse`}
                       style={{
                         left: `${Math.random() * 100}%`,
                         top: `${Math.random() * 60}%`,
@@ -228,15 +247,15 @@ export function RunScript({
                 </div>
 
                 {/* Clouds */}
-                <div className="absolute bottom-0 left-0 w-full h-32 opacity-30">
-                  <div className="absolute bottom-8 left-4 w-16 h-8 bg-white rounded-full"></div>
-                  <div className="absolute bottom-12 left-12 w-20 h-6 bg-white rounded-full"></div>
-                  <div className="absolute bottom-6 right-8 w-24 h-10 bg-white rounded-full"></div>
-                  <div className="absolute bottom-16 right-16 w-18 h-7 bg-white rounded-full"></div>
+                <div className="absolute bottom-0 left-0 w-full h-32 opacity-20">
+                  <div className="absolute bottom-8 left-4 w-16 h-8 bg-gray-100 rounded-full"></div>
+                  <div className="absolute bottom-12 left-12 w-20 h-6 bg-gray-100 rounded-full"></div>
+                  <div className="absolute bottom-6 right-8 w-24 h-10 bg-gray-100 rounded-full"></div>
+                  <div className="absolute bottom-16 right-16 w-18 h-7 bg-gray-100 rounded-full"></div>
                 </div>
 
-                {/* Rocket */}
-                <div className={`absolute bottom-8 left-1/2 transform -translate-x-1/2 transition-all duration-1000 ease-out ${getRocketPosition()}`}>
+                                 {/* Rocket */}
+                <div className={`absolute bottom-8 left-1/2 transform -translate-x-1/2 transition-all duration-2000 ease-out ${getRocketPosition()}`}>
                   <div className="relative">
                     {/* Rocket Body */}
                     <div className="w-12 h-20 bg-gradient-to-b from-red-500 to-red-600 rounded-t-full relative">
@@ -267,79 +286,48 @@ export function RunScript({
                   </div>
                 </div>
 
-                {/* Mission Control Panel */}
-                <div className="absolute top-4 right-4 bg-gray-800 rounded-lg p-3 text-white text-xs font-mono">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className={`w-2 h-2 rounded-full ${currentStep === 'failed' ? 'bg-red-500' : 'bg-green-400 animate-pulse'}`}></div>
-                    <span>MISSION CONTROL</span>
-                  </div>
-                  <div>T+ {elapsedTime}s</div>
-                </div>
               </div>
 
               {/* Status Message */}
               <div className="text-center">
-                <div className="inline-flex items-center gap-3 mb-6 px-6 py-3 bg-blue-50 rounded-full border border-blue-200">
-                  {currentStep === 'queued' && <Rocket className="w-6 h-6 text-blue-600" />}
-                  {currentStep === 'processing' && <Target className="w-6 h-6 text-orange-600 animate-pulse" />}
-                  {currentStep === 'completed' && <Trophy className="w-6 h-6 text-green-600" />}
-                  {currentStep === 'failed' && <AlertCircle className="w-6 h-6 text-red-600" />}
+                <div className="inline-flex items-center gap-3 mb-6 px-6 py-3 bg-gray-50 rounded-full border border-gray-200">
+                  {currentStep === 'queued' && <Rocket className="w-5 h-5 text-gray-600" />}
+                  {currentStep === 'processing' && <Target className="w-5 h-5 text-gray-700 animate-pulse" />}
+                  {currentStep === 'completed' && <Trophy className="w-5 h-5 text-green-600" />}
+                  {currentStep === 'failed' && <AlertCircle className="w-5 h-5 text-red-600" />}
                   
-                  <span className="text-lg font-semibold text-gray-800">
+                  <span className="text-base font-medium text-gray-700">
                     {getStepMessage()}
                   </span>
                 </div>
               </div>
 
-              {/* Mission Phases */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {[
-                  { phase: "Pre-flight", icon: "🔧", active: currentStep === 'queued' },
-                  { phase: "Launch", icon: "🚀", active: currentStep === 'processing' && elapsedTime < 15 },
-                  { phase: "Orbit", icon: "🌍", active: currentStep === 'processing' && elapsedTime >= 15 },
-                  { phase: "Landing", icon: "🎯", active: currentStep === 'completed' }
-                ].map((phase, index) => (
-                  <div key={index} className={`p-4 rounded-lg border-2 transition-all ${
-                    phase.active 
-                      ? 'border-blue-500 bg-blue-50 shadow-lg scale-105' 
-                      : 'border-gray-200 bg-gray-50'
-                  }`}>
-                    <div className="text-2xl text-center mb-2">{phase.icon}</div>
-                    <div className={`text-sm font-medium text-center ${
-                      phase.active ? 'text-blue-700' : 'text-gray-600'
-                    }`}>
-                      {phase.phase}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
               {/* Results Preview */}
               {currentStep === 'completed' && results && (
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6">
+                <div className="bg-gradient-to-r from-gray-50 to-green-50 border border-gray-200 rounded-lg p-6">
                   <div className="flex items-center justify-center gap-3 mb-6">
-                    <Trophy className="w-8 h-8 text-green-600" />
-                    <span className="text-xl font-bold text-green-900">Mission Success! 🎉</span>
+                    <Trophy className="w-6 h-6 text-green-600" />
+                    <span className="text-lg font-semibold text-gray-800">Mission Success! 🎉</span>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                      <div className="text-3xl font-bold text-green-700 mb-1">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-white rounded-lg border border-gray-100">
+                      <div className="text-2xl font-bold text-gray-700 mb-1">
                         {results.overall_results?.total_variations || 0}
                       </div>
-                      <div className="text-sm text-green-600 font-medium">🎯 Variations Tested</div>
+                      <div className="text-sm text-gray-600">🎯 Variations Tested</div>
                     </div>
-                    <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                      <div className="text-3xl font-bold text-green-700 mb-1">
+                    <div className="text-center p-4 bg-white rounded-lg border border-gray-100">
+                      <div className="text-2xl font-bold text-gray-700 mb-1">
                         {results.overall_results?.total_users?.toLocaleString() || 0}
                       </div>
-                      <div className="text-sm text-green-600 font-medium">👥 Users Analyzed</div>
+                      <div className="text-sm text-gray-600">👥 Users Analyzed</div>
                     </div>
-                    <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                      <div className="text-3xl font-bold text-green-700 mb-1">
+                    <div className="text-center p-4 bg-white rounded-lg border border-gray-100">
+                      <div className="text-2xl font-bold text-gray-700 mb-1">
                         {results.overall_results?.significant_metrics || 0}/{results.overall_results?.total_metrics || 0}
                       </div>
-                      <div className="text-sm text-green-600 font-medium">📊 Significant Results</div>
+                      <div className="text-sm text-gray-600">📊 Significant Results</div>
                     </div>
                   </div>
                 </div>
@@ -347,12 +335,12 @@ export function RunScript({
 
               {/* Error Display */}
               {currentStep === 'failed' && error && (
-                <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
                   <div className="flex items-center justify-center gap-3 mb-4">
-                    <AlertCircle className="w-8 h-8 text-red-600" />
-                    <span className="text-xl font-bold text-red-900">Mission Aborted! 💥</span>
+                    <AlertCircle className="w-6 h-6 text-red-600" />
+                    <span className="text-lg font-semibold text-red-800">Mission Aborted! 💥</span>
                   </div>
-                  <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <div className="bg-white rounded-lg p-4 border border-red-100">
                     <p className="text-sm text-red-700 font-mono">{error}</p>
                   </div>
                 </div>
@@ -363,17 +351,17 @@ export function RunScript({
                 {currentStep === 'completed' ? (
                   <button
                     onClick={() => onNextStep && onNextStep(results!)}
-                    className="px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-lg font-semibold rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg flex items-center gap-3"
+                    className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
                   >
-                    <Trophy className="w-5 h-5" />
+                    <Trophy className="w-4 h-4" />
                     Explore Mission Results
                   </button>
                 ) : currentStep === 'failed' ? (
                   <button
                     onClick={startAnalysis}
-                    className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg flex items-center gap-3"
+                    className="px-6 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
                   >
-                    <Rocket className="w-5 h-5" />
+                    <Rocket className="w-4 h-4" />
                     Retry Mission
                   </button>
                 ) : null}
