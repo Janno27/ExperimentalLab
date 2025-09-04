@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ab-test-analysis-api
+    runtime: python
+    region: frankfurt
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        value: http://localhost:3000,https://experimentio.netlify.app
