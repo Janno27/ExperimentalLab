@@ -49,6 +49,14 @@ export interface MetricDisplayConfig {
   note?: string
 }
 
+// Configuration des colonnes de dimension pour les filtres
+export interface DimensionColumn {
+  type: 'categorical'
+  values: string[]
+  count: number
+  display_name: string
+}
+
 // Interface pour les métriques d'analyse
 export interface AnalysisMetric {
   id: string
@@ -173,6 +181,7 @@ export interface AnalysisResults {
     total_variations: number
   }
   metric_results: MetricResult[]
+  dimension_columns?: Record<string, DimensionColumn>
 }
 
 // Résultat d'une métrique

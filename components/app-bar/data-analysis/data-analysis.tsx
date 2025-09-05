@@ -448,6 +448,14 @@ export function DataAnalysis({
           onBackStep={handleResultsBack}
           analysisResults={analysisResults || undefined}
           selectedTest={selectedTest || undefined}
+          originalData={importedFileData}
+          metrics={selectedMetrics}
+          variationColumn={testConfiguration.variationColumn}
+          userColumn={testConfiguration.userColumn}
+          dataType={testConfiguration.dataType}
+          confidenceLevel={statisticConfig.confidenceLevel}
+          statisticalMethod={statisticConfig.statisticalMethod}
+          multipleTestingCorrection={statisticConfig.multipleTestingCorrection}
         />
       </div>
     )

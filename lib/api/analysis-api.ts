@@ -9,6 +9,7 @@ export interface AnalysisConfig {
   confidence_level: number
   statistical_method: 'frequentist' | 'bayesian' | 'bootstrap'
   multiple_testing_correction: 'none' | 'bonferroni' | 'fdr'
+  filters?: Record<string, string[]>
 }
 
 export interface MetricConfig {

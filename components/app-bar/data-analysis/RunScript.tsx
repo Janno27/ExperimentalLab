@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { CheckCircle, AlertCircle, Rocket, Sparkles, Target, Trophy } from 'lucide-react'
+import { AlertCircle, Rocket, Sparkles, Target, Trophy } from 'lucide-react'
 import { analysisAPI, AnalysisConfig, AnalysisResults } from '@/lib/api/analysis-api'
 import { prepareAnalysisConfig, enrichAnalysisResults } from '@/lib/api/analysis-api-transformer'
 
@@ -48,7 +48,6 @@ export function RunScript({
   multipleTestingCorrection
 }: RunScriptProps) {
   const [currentStep, setCurrentStep] = useState<AnalysisStep>('queued')
-  const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<AnalysisResults | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
@@ -60,7 +59,6 @@ export function RunScript({
 
   const startPolling = useCallback((id: string) => {
     setCurrentStep('processing')
-    setProgress(30)
     
     intervalRef.current = setInterval(async () => {
       try {
@@ -79,7 +77,6 @@ export function RunScript({
             
             setResults(enrichedResults as unknown as AnalysisResults)
             setCurrentStep('completed')
-            setProgress(100)
             
             if (onNextStep) {
               onNextStep(enrichedResults as unknown as AnalysisResults)
@@ -94,16 +91,6 @@ export function RunScript({
           clearInterval(intervalRef.current!)
           setCurrentStep('failed')
           setError(status.error || 'Analysis failed')
-          setProgress(0)
-          
-        } else if (status.status === 'processing') {
-          // Update progress based on time elapsed
-          const timeElapsed = (Date.now() - startTimeRef.current) / 1000
-          if (timeElapsed < 5) {
-            setProgress(30 + (timeElapsed / 5) * 30) // 30% to 60% in first 5 seconds
-          } else {
-            setProgress(60 + Math.min((timeElapsed - 5) / 10, 1) * 30) // 60% to 90% in next 10 seconds
-          }
         }
         
       } catch (err) {
@@ -119,12 +106,10 @@ export function RunScript({
     try {
       setCurrentStep('queued')
       setError(null)
-      setProgress(10)
       
       // Start processing animation immediately
       setTimeout(() => {
         setCurrentStep('processing')
-        setProgress(30)
       }, 1000)
       
       // Transform config to API format

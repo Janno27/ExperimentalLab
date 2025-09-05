@@ -52,6 +52,10 @@ class AnalysisRequest(BaseModel):
         default="aggregated", 
         description="Type of data: 'aggregated' for pre-aggregated data, 'raw' for individual records"
     )
+    filters: Optional[Dict[str, List[str]]] = Field(
+        default_factory=dict,
+        description="Dimension filters to apply: column_name -> list of values to include"
+    )
     
     # Statistical configuration
     confidence_level: float = Field(

@@ -1,15 +1,25 @@
 'use client'
 
-import React from 'react'
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react'
+import React, { useState, useCallback } from 'react'
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Info, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Button } from '@/components/ui/button'
+import { AnalysisFilterOverlay } from './AnalysisFilterOverlay'
+import { analysisAPI } from '@/lib/api/analysis-api'
 import type { 
   MetricResult, 
   MetricDisplayConfig, 
   FormatConfig 
 } from '@/types/analysis'
 import { ColumnType } from '@/types/analysis'
+
+interface DimensionColumn {
+  type: 'categorical'
+  values: string[]
+  count: number
+  display_name: string
+}
 
 interface ResultsViewProps {
   onBackStep?: () => void
@@ -18,6 +28,7 @@ interface ResultsViewProps {
       total_users?: number
     }
     metric_results?: MetricResult[]
+    dimension_columns?: Record<string, DimensionColumn>
   }
   selectedTest?: {
     title?: string
@@ -25,6 +36,29 @@ interface ResultsViewProps {
     country?: string
     testType?: string
   }
+  originalData?: Record<string, unknown>[]
+  metrics?: Array<{
+    id: string
+    name: string
+    type: 'binary' | 'continuous'
+    numerator?: string
+    denominator?: string
+    valueColumn?: string
+    valueColumn2?: string
+    description?: string
+    isCustom: boolean
+    unit?: string
+    currency?: string
+    decimals?: number
+    isRevenue?: boolean
+    filters?: Record<string, unknown>
+  }>
+  variationColumn?: string
+  userColumn?: string
+  dataType?: 'aggregated' | 'raw'
+  confidenceLevel?: number
+  statisticalMethod?: 'frequentist' | 'bayesian' | 'bootstrap'
+  multipleTestingCorrection?: 'none' | 'bonferroni' | 'fdr'
 }
 
 // Les interfaces sont maintenant importées depuis types/analysis.ts
@@ -65,11 +99,101 @@ function StatisticTooltip({
   )
 }
 
-export function ResultsView({ onBackStep, analysisResults, selectedTest }: ResultsViewProps) {
+export function ResultsView({ 
+  onBackStep, 
+  analysisResults, 
+  selectedTest,
+  originalData,
+  metrics,
+  variationColumn,
+  userColumn,
+  dataType = 'aggregated',
+  confidenceLevel = 95,
+  statisticalMethod = 'frequentist',
+  multipleTestingCorrection = 'none'
+}: ResultsViewProps) {
+  const [activeFilters, setActiveFilters] = useState<Record<string, string[]>>({})
+  const [filteredResults, setFilteredResults] = useState(analysisResults)
+  const [isFilterLoading, setIsFilterLoading] = useState(false)
+  const [isFilterOverlayOpen, setIsFilterOverlayOpen] = useState(false)
+
   const handleBackStep = () => {
     if (onBackStep) {
       onBackStep()
     }
+  }
+
+  const handleFiltersChange = useCallback(async (newFilters: Record<string, string[]>) => {
+    console.log('🔍 Applying filters:', newFilters)
+    console.log('📊 Original data available:', !!originalData, originalData?.length)
+    console.log('📈 Metrics available:', !!metrics, metrics?.length)
+    console.log('🔄 Variation column:', variationColumn)
+    
+    setActiveFilters(newFilters)
+    setIsFilterLoading(true)
+
+    try {
+      // If no filters are applied, show original results
+      if (Object.keys(newFilters).length === 0) {
+        console.log('✅ No filters - showing original results')
+        setFilteredResults(analysisResults)
+        return
+      }
+
+      // If we have original data and metrics config, rerun analysis with filters
+      if (originalData && metrics && variationColumn) {
+        console.log('🚀 Starting filtered analysis...')
+        // Transform metrics config for API
+        const metricsConfig = metrics.map(metric => ({
+          name: metric.name,
+          column: metric.valueColumn || metric.numerator || '',
+          type: metric.type === 'binary' ? 'conversion' : 'count' as 'conversion' | 'revenue' | 'count' | 'ratio',
+          numerator_column: metric.numerator,
+          denominator_column: metric.denominator,
+          unit: metric.unit,
+          currency: metric.currency,
+          decimals: metric.decimals,
+          filters: metric.filters
+        }))
+
+        // Call API with filters
+        const response = await analysisAPI.startAnalysis({
+          data: originalData,
+          metrics_config: metricsConfig,
+          variation_column: variationColumn,
+          user_column: userColumn,
+          confidence_level: confidenceLevel,
+          statistical_method: statisticalMethod,
+          multiple_testing_correction: multipleTestingCorrection,
+          data_type: dataType,
+          filters: newFilters
+        })
+
+        // Poll for results
+        const results = await analysisAPI.getResults(response.job_id)
+        console.log('✅ Filtered analysis completed:', results.results)
+        setFilteredResults(results.results)
+      } else {
+        console.log('❌ Missing required data for filtered analysis')
+        console.log('- Original data:', !!originalData)
+        console.log('- Metrics:', !!metrics) 
+        console.log('- Variation column:', !!variationColumn)
+      }
+    } catch (error) {
+      console.error('❌ Failed to apply filters:', error)
+      // Keep showing original results on error
+      setFilteredResults(analysisResults)
+    } finally {
+      setIsFilterLoading(false)
+    }
+  }, [originalData, metrics, variationColumn, userColumn, dataType, confidenceLevel, statisticalMethod, multipleTestingCorrection, analysisResults])
+
+  // Use filtered results if available, otherwise use original
+  const currentResults = filteredResults || analysisResults
+
+  // Count active filters
+  const getActiveFiltersCount = () => {
+    return Object.keys(activeFilters).length
   }
 
   const formatNumber = (value: number | null | undefined, decimals: number = 2): string => {
@@ -571,7 +695,7 @@ export function ResultsView({ onBackStep, analysisResults, selectedTest }: Resul
     )
   }
 
-  if (!analysisResults) {
+  if (!currentResults) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <div className="text-center">
@@ -582,12 +706,51 @@ export function ResultsView({ onBackStep, analysisResults, selectedTest }: Resul
   }
 
   return (
-    <div className="flex h-full w-full">
-      {/* Contenu principal - full width sans sidebar */}
+    <div className="flex h-full w-full relative">
+      {/* Contenu principal - full width */}
       <div className="flex-1 flex flex-col">
+        {/* Header with Filter button */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={handleBackStep}
+              className="flex items-center gap-2 text-xs text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              <ArrowLeft size={14} />
+              <span>Back to analysis configuration</span>
+            </button>
+          </div>
+          
+          {/* Filter button - only show if dimensions are available */}
+          {analysisResults?.dimension_columns && Object.keys(analysisResults.dimension_columns).length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsFilterOverlayOpen(true)}
+              className="relative text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 h-8 px-3 cursor-pointer transition-all duration-200 hover:scale-105"
+            >
+              Filter
+              {getActiveFiltersCount() > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-blue-600 text-white text-[10px] leading-none">
+                  {getActiveFiltersCount()}
+                </span>
+              )}
+            </Button>
+          )}
+        </div>
+
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="w-full max-w-7xl mx-auto py-6 px-4">
-            <div className="space-y-6">
+            <div className="space-y-6 relative">
+              {/* Loading overlay */}
+              {isFilterLoading && (
+                <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                    <span className="text-sm text-gray-600">Applying filters...</span>
+                  </div>
+                </div>
+              )}
               {/* Header with Test Information */}
               {selectedTest && (
                 <div className="text-center border-b border-gray-200 pb-4">
@@ -611,35 +774,65 @@ export function ResultsView({ onBackStep, analysisResults, selectedTest }: Resul
                         <span>{selectedTest.testType}</span>
                       </div>
                     )}
-                    {analysisResults.overall_results?.total_users && (
+                    {currentResults.overall_results?.total_users && (
                       <div className="flex items-center gap-1">
                         <span className="font-medium">Users:</span>
-                        <span>{analysisResults.overall_results.total_users.toLocaleString()}</span>
-              </div>
+                        <span>{currentResults.overall_results.total_users.toLocaleString()}</span>
+                      </div>
                     )}
-              </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Active Filters Summary */}
+              {Object.keys(activeFilters).length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Info size={16} className="text-blue-600" />
+                      <span className="text-sm font-medium text-blue-900">Active Filters</span>
+                    </div>
+                    <button
+                      onClick={() => handleFiltersChange({})}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {Object.entries(activeFilters).map(([dimension, values]) => (
+                      <div key={dimension} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                        <span className="font-medium">
+                          {analysisResults?.dimension_columns?.[dimension]?.display_name || dimension}:
+                        </span>
+                        <span>{values.length === 1 ? values[0] : `${values.length} selected`}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
               {/* Metrics Results */}
               <div className="space-y-6">
-                {analysisResults.metric_results?.map((metric: MetricResult) => renderMetricTable(metric, 'aggregated'))}
+                {currentResults.metric_results?.map((metric: MetricResult) => renderMetricTable(metric, 'aggregated'))}
               </div>
 
-              {/* Navigation Button */}
-              <div className="flex justify-start pt-4">
-                <button 
-                  onClick={handleBackStep}
-                  className="flex items-center gap-2 text-xs text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                  <ArrowLeft size={14} />
-                  <span>Back to analysis configuration</span>
-                </button>
-              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Analysis Filter Overlay */}
+      {analysisResults?.dimension_columns && (
+        <AnalysisFilterOverlay
+          isOpen={isFilterOverlayOpen}
+          onClose={() => setIsFilterOverlayOpen(false)}
+          dimensionColumns={analysisResults.dimension_columns}
+          activeFilters={activeFilters}
+          onFiltersChange={handleFiltersChange}
+          isLoading={isFilterLoading}
+        />
+      )}
     </div>
   )
 } 

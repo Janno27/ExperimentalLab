@@ -102,6 +102,9 @@ class ABTestAnalyzer:
             
             print(f"Found {len(variations)} variations: control={control_variation}, treatments={treatment_variations}")
             
+            # Identify dimension columns for filtering
+            dimension_columns = self._identify_dimension_columns(df, variation_column, user_column)
+            
             # Calculate metrics for each configured metric
             metric_results = []
             warnings = []
@@ -147,6 +150,7 @@ class ABTestAnalyzer:
             return {
                 "overall_results": overall_results,
                 "metric_results": metric_results,
+                "dimension_columns": dimension_columns,
                 "analysis_duration_seconds": analysis_duration,
                 "warnings": warnings,
                 "recommendations": recommendations
@@ -186,6 +190,153 @@ class ABTestAnalyzer:
         
         # Default to first alphabetically
         return sorted(variations)[0]
+    
+    def _identify_dimension_columns(self, df: pd.DataFrame, variation_column: str, user_column: Optional[str] = None) -> Dict[str, Any]:
+        """Identify dimension columns that can be used for filtering"""
+        
+        # Columns to exclude from dimensions (system columns and metrics)
+        excluded_columns = {variation_column}
+        if user_column:
+            excluded_columns.add(user_column)
+        
+        # Get variation values to exclude them from dimension values
+        variation_values = set(df[variation_column].dropna().astype(str).unique()) if variation_column in df.columns else set()
+        
+        # Common metric column patterns to exclude
+        metric_patterns = [
+            'users', 'user_', 'conversions', 'conversion_', 'revenue', 'purchases', 
+            'purchase_', 'quantity', 'views', 'clicks', 'sessions', 'orders',
+            'add_to_cart', 'checkout', 'pdp_', 'cart_', 'begin_', 'gross_'
+        ]
+        
+        # Common test-related columns to exclude  
+        test_patterns = [
+            'test_', 'campaign', 'experiment', 'variant', 'variation'
+        ]
+        
+        dimension_columns = {}
+        
+        for column in df.columns:
+            # Skip excluded columns
+            if column in excluded_columns:
+                continue
+                
+            # Skip if column name matches metric patterns
+            if any(pattern in column.lower() for pattern in metric_patterns + test_patterns):
+                continue
+            
+            # Skip numeric columns that are likely metrics
+            if df[column].dtype in ['int64', 'float64']:
+                continue
+            
+            # Check if it's a categorical dimension
+            if df[column].dtype == 'object' or df[column].dtype.name == 'category':
+                unique_values = df[column].dropna().astype(str).unique()
+                
+                # Filter out variation values that might appear in this column
+                dimension_values = [v for v in unique_values if str(v) not in variation_values]
+                
+                # Only include if it has reasonable number of unique values (2-50) after filtering
+                if 2 <= len(dimension_values) <= 50:
+                    # Additional check: ensure it's actually a dimension column
+                    # by checking if values are consistent across variations
+                    is_dimension = self._validate_dimension_column(df, column, variation_column)
+                    
+                    if is_dimension:
+                        dimension_columns[column] = {
+                            'type': 'categorical',
+                            'values': sorted(dimension_values),
+                            'count': len(dimension_values),
+                            'display_name': self._format_dimension_name(column)
+                        }
+        
+        return dimension_columns
+    
+    def _validate_dimension_column(self, df: pd.DataFrame, column: str, variation_column: str) -> bool:
+        """Validate that a column is actually a dimension and not variation-related"""
+        try:
+            # Check if the column has values that appear across different variations
+            cross_tab = pd.crosstab(df[variation_column], df[column], dropna=False)
+            
+            # If any dimension value appears in multiple variations, it's likely a real dimension
+            dimension_appears_in_multiple_variations = (cross_tab > 0).sum(axis=0).max() > 1
+            
+            # Also check that it's not just a copy of the variation column
+            is_not_variation_copy = len(df[column].unique()) != len(df[variation_column].unique())
+            
+            return dimension_appears_in_multiple_variations and is_not_variation_copy
+            
+        except Exception:
+            # If validation fails, be conservative and exclude
+            return False
+    
+    def _format_dimension_name(self, column_name: str) -> str:
+        """Format dimension column name for display"""
+        # Convert snake_case to Title Case
+        formatted = column_name.replace('_', ' ').title()
+        
+        # Handle specific cases
+        replacements = {
+            'Device Category': 'Device Category',
+            'Item Category': 'Item Category', 
+            'Detailed Item Category': 'Detailed Item Category',
+            'Item Name': 'Item Name',
+            'Item Bundle Or Name': 'Item Bundle or Name'
+        }
+        
+        return replacements.get(formatted, formatted)
+    
+    def analyze_with_filters(
+        self,
+        data: List[Dict[str, Any]],
+        metrics_config: List[Dict[str, Any]],
+        variation_column: str,
+        filters: Dict[str, List[str]] = None,
+        user_column: Optional[str] = None,
+        data_type: str = "aggregated"
+    ) -> Dict[str, Any]:
+        """
+        Perform analysis with applied filters
+        
+        Args:
+            data: Raw data as list of dictionaries
+            metrics_config: Configuration for metrics to analyze
+            variation_column: Column containing variation labels
+            filters: Dictionary of column -> list of values to filter by
+            user_column: Column containing user identifiers
+            data_type: Type of data (aggregated or raw)
+            
+        Returns:
+            Complete analysis results for filtered data
+        """
+        # Convert to DataFrame
+        df = pd.DataFrame(data)
+        
+        # Apply filters if provided
+        if filters:
+            df = self._apply_dimension_filters(df, filters)
+        
+        # Convert back to list of dicts and run regular analysis
+        filtered_data = df.to_dict('records')
+        
+        return self.analyze(
+            filtered_data,
+            metrics_config,
+            variation_column,
+            user_column,
+            data_type
+        )
+    
+    def _apply_dimension_filters(self, df: pd.DataFrame, filters: Dict[str, List[str]]) -> pd.DataFrame:
+        """Apply dimension filters to dataframe"""
+        filtered_df = df.copy()
+        
+        for column, values in filters.items():
+            if column in df.columns and values:
+                # Filter to include only specified values
+                filtered_df = filtered_df[filtered_df[column].isin(values)]
+        
+        return filtered_df
     
     def _analyze_metric(
         self,

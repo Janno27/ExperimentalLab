@@ -121,14 +121,24 @@ async def run_analysis(job_id: str, request: AnalysisRequest):
             multiple_testing_correction=request.multiple_testing_correction
         )
         
-        # Run analysis
-        results = analyzer.analyze(
-            data=validated_data,
-            metrics_config=request.metrics_config,
-            variation_column=request.variation_column,
-            user_column=request.user_column,
-            data_type=request.data_type
-        )
+        # Run analysis with filters
+        if request.filters:
+            results = analyzer.analyze_with_filters(
+                data=validated_data,
+                metrics_config=request.metrics_config,
+                variation_column=request.variation_column,
+                filters=request.filters,
+                user_column=request.user_column,
+                data_type=request.data_type
+            )
+        else:
+            results = analyzer.analyze(
+                data=validated_data,
+                metrics_config=request.metrics_config,
+                variation_column=request.variation_column,
+                user_column=request.user_column,
+                data_type=request.data_type
+            )
         
         # Update job with results
         analysis_jobs[job_id]["status"] = "completed"
