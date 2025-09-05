@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { AlertCircle, Rocket, Sparkles, Target, Trophy } from 'lucide-react'
+import { AlertCircle, Rocket, Sparkles, Trophy } from 'lucide-react'
 import { analysisAPI, AnalysisConfig, AnalysisResults } from '@/lib/api/analysis-api'
 import { prepareAnalysisConfig, enrichAnalysisResults } from '@/lib/api/analysis-api-transformer'
 
@@ -166,19 +166,19 @@ export function RunScript({
     
     switch (currentStep) {
       case 'queued':
-        return "🚀 Preparing for data liftoff..."
+        return "Preparing for data liftoff..."
       case 'processing':
-        if (progressRatio < 0.2) return "🔥 Igniting statistical engines..."
-        if (progressRatio < 0.4) return "📊 Crunching numbers at light speed..."
-        if (progressRatio < 0.6) return "🧮 Computing confidence intervals..."
-        if (progressRatio < 0.8) return "📈 Analyzing conversion patterns..."
-        return "🎯 Fine-tuning the results..."
+        if (progressRatio < 0.2) return "Igniting statistical engines..."
+        if (progressRatio < 0.4) return "Crunching numbers at light speed..."
+        if (progressRatio < 0.6) return "Computing confidence intervals..."
+        if (progressRatio < 0.8) return "Analyzing conversion patterns..."
+        return "Fine-tuning the results..."
       case 'completed':
-        return "🎉 Mission accomplished! Data has landed!"
+        return "Mission accomplished! Data has landed!"
       case 'failed':
-        return "💥 Houston, we have a problem..."
+        return "Houston, we have a problem..."
       default:
-        return "🚀 Ready for takeoff..."
+        return "Ready for takeoff..."
     }
   }
 
@@ -206,16 +206,18 @@ export function RunScript({
     <div className="flex h-full w-full">
       <div className="flex-1 flex flex-col">
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="w-full max-w-4xl mx-auto py-8 px-6">
-            <div className="space-y-12">
+          <div className="w-full h-full flex flex-col items-center justify-center px-6 py-8">
+            <div className="space-y-6 w-full max-w-5xl h-full flex flex-col">
               {/* Header */}
               <div className="text-center">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">🚀 A/B Test Analysis Mission</h3>
-                <p className="text-lg text-gray-600">Launching your data into the stratosphere of insights!</p>
+                <h2 className="text-2xl font-bold text-gray-900 mb-3">🚀 Analysis in Progress</h2>
+                <p className={`text-lg text-gray-600 transition-all duration-1000 ${
+                  currentStep === 'processing' ? 'animate-pulse' : ''
+                }`}>Launching your data into the stratosphere of insights!</p>
               </div>
 
-              {/* Rocket Animation Section */}
-              <div className="relative h-80 bg-gradient-to-b from-gray-50 via-gray-25 to-white rounded-xl overflow-hidden border border-gray-200">
+              {/* Rocket Animation Section - Larger and Responsive */}
+              <div className="relative flex-1 min-h-[450px] max-h-[550px] bg-gradient-to-b from-gray-50 via-gray-25 to-white rounded-xl overflow-hidden border border-gray-200">
                 {/* Stars Background */}
                 <div className="absolute inset-0">
                   {[...Array(12)].map((_, i) => (
@@ -271,21 +273,19 @@ export function RunScript({
                   </div>
                 </div>
 
+                {/* Step Message at bottom of rocket animation */}
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 border border-gray-200/50 shadow-sm">
+                    <p className={`text-sm italic text-gray-700 transition-all duration-500 ${
+                      currentStep === 'processing' ? 'animate-pulse' : ''
+                    }`}>
+                      {getStepMessage()}
+                    </p>
+                  </div>
+                </div>
+
               </div>
 
-              {/* Status Message */}
-              <div className="text-center">
-                <div className="inline-flex items-center gap-3 mb-6 px-6 py-3 bg-gray-50 rounded-full border border-gray-200">
-                  {currentStep === 'queued' && <Rocket className="w-5 h-5 text-gray-600" />}
-                  {currentStep === 'processing' && <Target className="w-5 h-5 text-gray-700 animate-pulse" />}
-                  {currentStep === 'completed' && <Trophy className="w-5 h-5 text-green-600" />}
-                  {currentStep === 'failed' && <AlertCircle className="w-5 h-5 text-red-600" />}
-                  
-                  <span className="text-base font-medium text-gray-700">
-                    {getStepMessage()}
-                  </span>
-                </div>
-              </div>
 
               {/* Results Preview */}
               {currentStep === 'completed' && results && (
@@ -332,7 +332,7 @@ export function RunScript({
               )}
 
               {/* Navigation */}
-              <div className="flex justify-center pt-6">
+              <div className="flex justify-center mt-auto pt-4">
                 {currentStep === 'completed' ? (
                   <button
                     onClick={() => onNextStep && onNextStep(results!)}

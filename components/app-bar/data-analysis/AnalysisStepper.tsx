@@ -57,31 +57,31 @@ export function AnalysisStepper({ currentStep }: AnalysisStepperProps) {
           return (
             <div key={step.id} className="flex items-center">
               <div className={cn(
-                "flex items-center gap-2 px-2 py-1 rounded-lg transition-colors relative z-10",
+                "flex items-center gap-1.5 px-1.5 py-0.5 rounded-lg transition-colors relative z-10",
                 step.status === 'active' 
                   ? "bg-purple-50 text-purple-700 border border-purple-200" 
                   : ""
               )}>
-                <div className="flex items-center justify-center w-4 h-4 relative">
+                <div className="flex items-center justify-center w-3 h-3 relative">
                   {step.status === 'completed' ? (
-                    <CheckCircle className="w-3 h-3 text-green-600" />
+                    <CheckCircle className="w-2.5 h-2.5 text-green-600" />
                   ) : (
                     <Circle className={cn(
-                      "w-3 h-3",
+                      "w-2.5 h-2.5",
                       step.status === 'active' ? "text-purple-600" : "text-gray-400"
                     )} />
                   )}
                 </div>
                 <div className="text-left">
                   <div className={cn(
-                    "text-xs font-medium",
+                    "text-[10px] font-medium",
                     step.status === 'active' ? "text-purple-700" : 
                     step.status === 'completed' ? "text-green-600" : "text-gray-500"
                   )}>
                     {step.title}
                   </div>
                   <div className={cn(
-                    "text-xs leading-tight",
+                    "text-[10px] leading-tight",
                     step.status === 'active' ? "text-purple-600" : 
                     step.status === 'completed' ? "text-green-500" : "text-gray-400"
                   )}>

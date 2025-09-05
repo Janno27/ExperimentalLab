@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react'
 import { fetchExperimentations, fetchMarkets, fetchOwners, fetchKPIs, fetchPages, fetchProducts } from '@/lib/airtable'
 import { SelectAnalysis, SelectColumns, TestConfiguration, SuggestedMetrics, StatisticConfiguration, type StatisticConfig } from './configure-analysis'
 import { ResultsView } from './ResultsView'
@@ -111,14 +111,22 @@ interface DataAnalysisProps {
   onStepChange?: (step: number) => void
   showDataImport?: boolean
   setShowDataImport?: (show: boolean) => void
+  activeTab?: string
+  setActiveTab?: (tab: string) => void
 }
 
-export function DataAnalysis({
+export interface DataAnalysisRef {
+  handleBackStep?: () => void
+  handleFilterClick?: () => void
+  getActiveFiltersCount?: () => number
+}
+
+export const DataAnalysis = forwardRef<DataAnalysisRef, DataAnalysisProps>(({
   onStepChange,
   showDataImport = false,
-  setShowDataImport
-}: DataAnalysisProps) {
-  const [activeTab, setActiveTab] = useState('existing')
+  setShowDataImport,
+  activeTab = 'existing'
+}, ref) => {
   const [importedFileData, setImportedFileData] = useState<Record<string, unknown>[]>([])
   const [selectedColumns, setSelectedColumns] = useState<string[]>([])
   const [selectedTest, setSelectedTest] = useState<Project | null>(null)
@@ -195,6 +203,15 @@ export function DataAnalysis({
       is_significant: boolean
     }>
   } | null>(null)
+  
+  const resultsViewRef = useRef<{ handleBackStep?: () => void, handleFilterClick?: () => void, getActiveFiltersCount?: () => number }>(null)
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    handleBackStep: () => resultsViewRef.current?.handleBackStep?.(),
+    handleFilterClick: () => resultsViewRef.current?.handleFilterClick?.(),
+    getActiveFiltersCount: () => resultsViewRef.current?.getActiveFiltersCount?.() || 0
+  }))
 
   // Function to fetch "Ready for Analysis" tests
   const fetchReadyForAnalysisTests = async () => {
@@ -428,10 +445,17 @@ export function DataAnalysis({
     }
   }
 
-  // Gérer le retour depuis les résultats
+  // Gérer le retour depuis les résultats - retourner vers SelectColumns
   const handleResultsBack = () => {
     setShowResults(false)
-    setShowRunScript(true)
+    setShowRunScript(false)
+    setShowStatisticConfiguration(false)
+    setShowSuggestedMetrics(false)
+    setShowTestConfiguration(false)
+    setShowSelectColumns(true)
+    if (onStepChange) {
+      onStepChange(2)
+    }
   }
 
   // Gérer le retour depuis RunScript
@@ -445,6 +469,7 @@ export function DataAnalysis({
     return (
       <div className="w-full h-[88vh] overflow-hidden flex flex-col">
         <ResultsView
+          ref={resultsViewRef}
           onBackStep={handleResultsBack}
           analysisResults={analysisResults || undefined}
           selectedTest={selectedTest || undefined}
@@ -547,32 +572,6 @@ export function DataAnalysis({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Tabs with the same configuration as TimelineControls */}
-      <div className="flex items-center justify-center mb-4">
-        <div className="flex items-center gap-0.5 bg-gray-200 rounded-2xl p-0.5">
-          <button
-            className={`rounded-xl text-xs h-7 px-3 cursor-pointer transition-all ${
-              activeTab === 'existing'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-            onClick={() => setActiveTab('existing')}
-          >
-            Existing Test
-          </button>
-          <button
-            className={`rounded-xl text-xs h-7 px-3 cursor-pointer transition-all ${
-              activeTab === 'scratch'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-            onClick={() => setActiveTab('scratch')}
-          >
-            From Scratch
-          </button>
-        </div>
-      </div>
-
       {/* Tab content with full height */}
       {activeTab === 'existing' && (
         <div className="w-full h-full overflow-hidden flex flex-col">
@@ -620,4 +619,6 @@ export function DataAnalysis({
       )}
     </div>
   )
-} 
+})
+
+DataAnalysis.displayName = 'DataAnalysis' 

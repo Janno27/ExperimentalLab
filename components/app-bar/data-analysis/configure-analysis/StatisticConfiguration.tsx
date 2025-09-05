@@ -307,7 +307,7 @@ export function StatisticConfiguration({
               
               <button
                 onClick={handleNextStep}
-                className="px-6 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                className="px-6 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors cursor-pointer"
               >
                 Run Analysis
               </button>

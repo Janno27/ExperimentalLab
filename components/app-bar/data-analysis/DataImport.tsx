@@ -123,7 +123,7 @@ export function DataImport({ onNextStep }: DataImportProps) {
     <div className="flex flex-col h-full w-full max-h-full overflow-hidden">
       <div 
         ref={containerRef}
-        className="flex-1 min-h-0 overflow-y-auto"
+        className="flex-1 min-h-0 overflow-y-auto flex items-center"
       >
         <div className="w-full max-w-2xl mx-auto py-8">
           <div className="space-y-8">
@@ -158,7 +158,7 @@ export function DataImport({ onNextStep }: DataImportProps) {
                     onClick={() => fileInputRef.current?.click()}
                     variant="outline"
                     size="sm"
-                    className="w-full"
+                    className="w-full cursor-pointer"
                   >
                     Choose File
                   </Button>
@@ -271,7 +271,7 @@ export function DataImport({ onNextStep }: DataImportProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full border-purple-300 text-purple-700 hover:bg-purple-50"
+                      className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 cursor-pointer"
                     >
                       Connect to Data Source
                     </Button>

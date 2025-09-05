@@ -1,10 +1,9 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Info, Loader2 } from 'lucide-react'
+import React, { useState, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { TrendingUp, TrendingDown, Minus, Info, Loader2, FlaskConical, Sparkles, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Button } from '@/components/ui/button'
 import { AnalysisFilterOverlay } from './AnalysisFilterOverlay'
 import { analysisAPI } from '@/lib/api/analysis-api'
 import type { 
@@ -63,6 +62,15 @@ interface ResultsViewProps {
 
 // Les interfaces sont maintenant importées depuis types/analysis.ts
 
+// Fonction pour afficher l'icône du type de test (cohérente avec KanbanCard)
+function typeIcon(type?: string) {
+  if (!type) return null
+  if (type === 'A/B-Test') return <FlaskConical size={15} className="text-blue-500" />
+  if (type === 'Personalization') return <Sparkles size={15} className="text-cyan-500" />
+  if (type === 'Fix/Patch') return <Wrench size={15} className="text-teal-500" />
+  return null
+}
+
 // Composant Tooltip pour les informations statistiques
 function StatisticTooltip({ 
   title, 
@@ -99,7 +107,13 @@ function StatisticTooltip({
   )
 }
 
-export function ResultsView({ 
+export interface ResultsViewRef {
+  handleBackStep?: () => void
+  handleFilterClick?: () => void
+  getActiveFiltersCount?: () => number
+}
+
+export const ResultsView = forwardRef<ResultsViewRef, ResultsViewProps>(({ 
   onBackStep, 
   analysisResults, 
   selectedTest,
@@ -111,7 +125,7 @@ export function ResultsView({
   confidenceLevel = 95,
   statisticalMethod = 'frequentist',
   multipleTestingCorrection = 'none'
-}: ResultsViewProps) {
+}, ref) => {
   const [activeFilters, setActiveFilters] = useState<Record<string, string[]>>({})
   const [filteredResults, setFilteredResults] = useState(analysisResults)
   const [isFilterLoading, setIsFilterLoading] = useState(false)
@@ -122,6 +136,17 @@ export function ResultsView({
       onBackStep()
     }
   }
+
+  const handleFilterClick = () => {
+    setIsFilterOverlayOpen(true)
+  }
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    handleBackStep,
+    handleFilterClick,
+    getActiveFiltersCount
+  }))
 
   const handleFiltersChange = useCallback(async (newFilters: Record<string, string[]>) => {
     console.log('🔍 Applying filters:', newFilters)
@@ -235,7 +260,8 @@ export function ResultsView({
     return formatted
   }
 
-  const getUpliftIcon = (uplift: number) => {
+  const getUpliftIcon = (uplift: number, isSignificant: boolean = true) => {
+    if (!isSignificant) return null // No icon for non-significant results
     if (uplift > 0) return <TrendingUp size={12} className="text-green-600" />
     if (uplift < 0) return <TrendingDown size={12} className="text-red-600" />
     return <Minus size={12} className="text-gray-600" />
@@ -480,9 +506,10 @@ export function ResultsView({
       case ColumnType.UPLIFT:
         return comparison ? (
           <div className="flex items-center gap-1">
-            {getUpliftIcon(comparison.relative_uplift)}
+            {getUpliftIcon(comparison.relative_uplift, comparison.is_significant)}
             <span className={cn(
               "text-sm font-medium",
+              !comparison.is_significant ? "text-gray-400" :
               comparison.relative_uplift > 0 ? "text-green-600" : 
               comparison.relative_uplift < 0 ? "text-red-600" : "text-gray-600"
             )}>
@@ -709,39 +736,37 @@ export function ResultsView({
     <div className="flex h-full w-full relative">
       {/* Contenu principal - full width */}
       <div className="flex-1 flex flex-col">
-        {/* Header with Filter button */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={handleBackStep}
-              className="flex items-center gap-2 text-xs text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <ArrowLeft size={14} />
-              <span>Back to analysis configuration</span>
-            </button>
-          </div>
-          
-          {/* Filter button - only show if dimensions are available */}
-          {analysisResults?.dimension_columns && Object.keys(analysisResults.dimension_columns).length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsFilterOverlayOpen(true)}
-              className="relative text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 h-8 px-3 cursor-pointer transition-all duration-200 hover:scale-105"
-            >
-              Filter
-              {getActiveFiltersCount() > 0 && (
-                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-blue-600 text-white text-[10px] leading-none">
-                  {getActiveFiltersCount()}
-                </span>
-              )}
-            </Button>
-          )}
-        </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="w-full max-w-7xl mx-auto py-6 px-4">
             <div className="space-y-6 relative">
+              {/* Active filters display at top of content */}
+              {Object.keys(activeFilters).length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-blue-900">Active Filters:</span>
+                      <div className="flex items-center gap-2">
+                        {Object.entries(activeFilters).map(([dimension, values]) => (
+                          <div key={dimension} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                            <span className="font-medium">
+                              {analysisResults?.dimension_columns?.[dimension]?.display_name || dimension}:
+                            </span>
+                            <span>{values.length === 1 ? values[0] : `${values.length} selected`}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleFiltersChange({})}
+                      className="text-sm text-blue-600 hover:text-blue-800 underline"
+                      title="Clear all filters"
+                    >
+                      Clear all filters
+                    </button>
+                  </div>
+                </div>
+              )}
               {/* Loading overlay */}
               {isFilterLoading && (
                 <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
@@ -753,61 +778,42 @@ export function ResultsView({
               )}
               {/* Header with Test Information */}
               {selectedTest && (
-                <div className="text-center border-b border-gray-200 pb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{selectedTest.title}</h3>
-                  <div className="flex items-center justify-center gap-6 text-sm text-gray-600">
+                <div className="text-center pb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{selectedTest.title}</h3>
+                  <div className="flex items-center justify-center gap-4 flex-wrap">
                     {selectedTest.owner && (
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">Owner:</span>
-                        <span>{selectedTest.owner}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">Owner:</span>
+                        <span className="bg-violet-100 text-violet-700 rounded px-2 py-1 text-sm">
+                          {selectedTest.owner}
+                        </span>
                       </div>
                     )}
                     {selectedTest.country && (
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">Market:</span>
-                        <span>{selectedTest.country}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">Market:</span>
+                        <span className="bg-blue-100 text-blue-700 rounded px-2 py-1 text-sm">
+                          {selectedTest.country}
+                        </span>
                       </div>
                     )}
                     {selectedTest.testType && (
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">Type:</span>
-                        <span>{selectedTest.testType}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">Type:</span>
+                        <div className="flex items-center gap-1 bg-gray-100 text-gray-700 rounded px-2 py-1">
+                          {typeIcon(selectedTest.testType)}
+                          <span className="text-sm">{selectedTest.testType}</span>
+                        </div>
                       </div>
                     )}
                     {currentResults.overall_results?.total_users && (
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">Users:</span>
-                        <span>{currentResults.overall_results.total_users.toLocaleString()}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">Users:</span>
+                        <span className="bg-green-100 text-green-700 rounded px-2 py-1 text-sm font-medium">
+                          {currentResults.overall_results.total_users.toLocaleString()}
+                        </span>
                       </div>
                     )}
-                  </div>
-                </div>
-              )}
-
-              {/* Active Filters Summary */}
-              {Object.keys(activeFilters).length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Info size={16} className="text-blue-600" />
-                      <span className="text-sm font-medium text-blue-900">Active Filters</span>
-                    </div>
-                    <button
-                      onClick={() => handleFiltersChange({})}
-                      className="text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {Object.entries(activeFilters).map(([dimension, values]) => (
-                      <div key={dimension} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                        <span className="font-medium">
-                          {analysisResults?.dimension_columns?.[dimension]?.display_name || dimension}:
-                        </span>
-                        <span>{values.length === 1 ? values[0] : `${values.length} selected`}</span>
-                      </div>
-                    ))}
                   </div>
                 </div>
               )}
@@ -835,4 +841,6 @@ export function ResultsView({
       )}
     </div>
   )
-} 
+})
+
+ResultsView.displayName = 'ResultsView' 

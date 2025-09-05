@@ -155,7 +155,7 @@ export function SelectColumns({ onNextStep, fileData }: SelectColumnsProps) {
                           key={column}
                           onClick={() => handleColumnToggle(column)}
                           className={cn(
-                            "px-3 py-2 text-xs rounded-lg border transition-all duration-200",
+                            "px-3 py-2 text-xs rounded-lg border transition-all duration-200 cursor-pointer",
                             selectedColumns.includes(column)
                               ? "bg-purple-50 border-purple-200 text-purple-700"
                               : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"

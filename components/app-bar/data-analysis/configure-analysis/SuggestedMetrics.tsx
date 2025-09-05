@@ -258,14 +258,14 @@ export function SuggestedMetrics({ onNextStep, onBackStep, fileData, selectedCol
                           <div className="flex items-center gap-2 ml-4">
                             <button
                               onClick={() => handleEditMetric(customMetric)}
-                              className="text-gray-400 hover:text-gray-600 transition-colors"
+                              className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
                             >
                               <Edit2 size={14} />
                             </button>
                             <button
                               onClick={() => handleMetricToggle(customMetric)}
                               className={cn(
-                                "text-xs px-2 py-1 rounded transition-colors",
+                                "text-xs px-2 py-1 rounded transition-colors cursor-pointer",
                                 isSelected
                                   ? "bg-purple-100 text-purple-700"
                                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -315,13 +315,13 @@ export function SuggestedMetrics({ onNextStep, onBackStep, fileData, selectedCol
                         <div className="flex items-center gap-2 ml-4">
                           <button
                             onClick={() => handleEditMetric(metric)}
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                            className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
                           >
                             <Edit2 size={14} />
                           </button>
                           <button
                             onClick={() => handleDeleteMetric(metric.id)}
-                            className="text-red-400 hover:text-red-600 transition-colors"
+                            className="text-red-400 hover:text-red-600 transition-colors cursor-pointer"
                           >
                             <X size={14} />
                           </button>
