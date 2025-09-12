@@ -100,6 +100,9 @@ export async function fetchExperimentations(): Promise<AirtableRecord[]> {
       'Traffic Allocation': r.fields['Traffic Allocation'] || '',
       // Champ pour le fichier d'analyse
       'Results - Deepdive': r.fields['Results - Deepdive'] || null,
+      // Champs pour les métriques d'analyse
+      'Conclusive vs Non Conclusive': r.fields['Conclusive vs Non Conclusive'] || '',
+      'Win vs Loss': r.fields['Win vs Loss'] || r.fields['Win/Loss'] || r.fields['WinLoss'] || '',
     }
   }))
   

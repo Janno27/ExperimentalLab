@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { Search, FlaskConical, Sparkles, Wrench, Database } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { SelectAnalysisSkeleton } from '../SelectAnalysisSkeleton'
 
 interface ReadyForAnalysisTest {
   id: string
@@ -83,19 +84,17 @@ export function SelectAnalysis({ tests, loading, onTestSelect, selectedTestId }:
       <div className="flex-1 min-h-0 px-6 max-h-[calc(100vh-10rem)]">
         <div className="h-full overflow-y-auto">
           {loading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="text-gray-500">Loading tests...</div>
-            </div>
+            <SelectAnalysisSkeleton />
           ) : filteredTests.length === 0 ? (
             <div className="text-center py-12">
               <Database className="w-12 h-12 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm ? 'No tests found' : 'No tests ready for analysis'}
+                {searchTerm ? 'No tests found' : 'No tests available for analysis'}
               </h3>
               <p className="text-gray-500">
                 {searchTerm 
                   ? 'Try modifying your search criteria'
-                  : 'All your tests are either in progress or already analyzed'
+                  : 'All your tests are either completed or not yet ready for analysis'
                 }
               </p>
             </div>
@@ -115,7 +114,20 @@ export function SelectAnalysis({ tests, loading, onTestSelect, selectedTestId }:
                   aria-label="Select test for analysis"
                 >
                   <div className="flex items-center justify-between mb-1 min-h-[20px]">
-                    <div>{typeIcon(test.type)}</div>
+                    <div className="flex items-center gap-2">
+                      {typeIcon(test.type)}
+                      {/* Status badge */}
+                      {test.status === 'Analysing' && (
+                        <span className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200 rounded px-1.5 py-0.5 text-[10px] font-medium">
+                          Analysing
+                        </span>
+                      )}
+                      {test.status === 'Ready for Analysis' && (
+                        <span className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded px-1.5 py-0.5 text-[10px] font-medium">
+                          Ready
+                        </span>
+                      )}
+                    </div>
                     {test.fields?.Scope && (
                       <span className="bg-zinc-100 dark:bg-zinc-700 rounded px-1.5 py-0.5 ml-1 whitespace-nowrap text-[10px] font-normal">
                         {test.fields.Scope}

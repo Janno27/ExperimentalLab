@@ -230,4 +230,25 @@ class FilterRequest(BaseModel):
     def validate_filters_not_empty(cls, v):
         if not v:
             raise ValueError('Filters cannot be empty')
+        return v
+
+class TransactionEnrichmentRequest(BaseModel):
+    """Request to enrich analysis with transaction-level data"""
+    job_id: str = Field(..., description="Job ID to enrich (can be filtered analysis)")
+    transaction_data: List[Dict[str, Any]] = Field(..., description="Transaction-level data")
+    original_job_id: Optional[str] = Field(None, description="Original job ID for cache lookup")
+    
+    @validator('transaction_data')
+    def validate_transaction_data_not_empty(cls, v):
+        if not v:
+            raise ValueError('Transaction data cannot be empty')
+        
+        # Validate required columns in first record
+        if v:
+            first_record = v[0]
+            required_columns = ['transaction_id', 'variation', 'revenue']
+            missing_columns = [col for col in required_columns if col not in first_record]
+            if missing_columns:
+                raise ValueError(f'Missing required columns: {missing_columns}')
+        
         return v 

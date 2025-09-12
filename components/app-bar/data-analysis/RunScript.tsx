@@ -8,7 +8,7 @@ import { prepareAnalysisConfig, enrichAnalysisResults } from '@/lib/api/analysis
 
 interface RunScriptProps {
   onBackStep?: () => void
-  onNextStep?: (results: AnalysisResults) => void
+  onNextStep?: (results: AnalysisResults, jobId?: string) => void
   data: Record<string, unknown>[]
   metrics: Array<{
     id: string
@@ -50,15 +50,21 @@ export function RunScript({
   const [currentStep, setCurrentStep] = useState<AnalysisStep>('queued')
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<AnalysisResults | null>(null)
+  const [, setCurrentJobId] = useState<string | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [animationDuration] = useState(() => Math.floor((Math.random() * 15 + 5) * 10) / 10) // 5.0-20.0 seconds with 1 decimal
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const startTimeRef = useRef<number>(Date.now())
   const metricsRef = useRef<RunScriptProps['metrics']>([])
+  const onNextStepRef = useRef(onNextStep)
+
+  // Update the ref when onNextStep changes
+  onNextStepRef.current = onNextStep
 
   const startPolling = useCallback((id: string) => {
     setCurrentStep('processing')
+    setCurrentJobId(id)
     
     intervalRef.current = setInterval(async () => {
       try {
@@ -66,6 +72,7 @@ export function RunScript({
         
         if (status.status === 'completed') {
           clearInterval(intervalRef.current!)
+          intervalRef.current = null
           
           try {
             // Get results
@@ -78,29 +85,29 @@ export function RunScript({
             setResults(enrichedResults as unknown as AnalysisResults)
             setCurrentStep('completed')
             
-            if (onNextStep) {
-              onNextStep(enrichedResults as unknown as AnalysisResults)
+            if (onNextStepRef.current) {
+              onNextStepRef.current(enrichedResults as unknown as AnalysisResults, id)
             }
           } catch (resultsError) {
-            console.error("Failed to fetch results:", resultsError)
             setError(resultsError instanceof Error ? resultsError.message : "Analysis completed, but failed to fetch results.")
             setCurrentStep('failed')
           }
           
         } else if (status.status === 'failed') {
           clearInterval(intervalRef.current!)
+          intervalRef.current = null
           setCurrentStep('failed')
           setError(status.error || 'Analysis failed')
         }
         
       } catch (err) {
-        console.error('Polling error:', err)
         setError(err instanceof Error ? err.message : 'Polling failed due to a network or server error.')
         setCurrentStep('failed')
         clearInterval(intervalRef.current!)
+        intervalRef.current = null
       }
     }, 500)
-  }, [onNextStep])
+  }, [])
 
   const startAnalysis = useCallback(async () => {
     try {
@@ -135,7 +142,6 @@ export function RunScript({
       startPolling(response.job_id)
       
     } catch (err) {
-      console.error('Analysis error:', err)
       setError(err instanceof Error ? err.message : 'Failed to start analysis')
       setCurrentStep('failed')
     }

@@ -17,6 +17,7 @@ export enum ColumnType {
   VARIATION = 'variation',
   USERS = 'users',
   BASE_USERS = 'base_users',
+  TRANSACTIONS = 'transactions',
   CONVERSIONS = 'conversions',
   CONVERSION_RATE = 'conversion_rate',
   VALUE = 'value',

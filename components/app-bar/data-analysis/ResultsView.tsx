@@ -1,10 +1,12 @@
 'use client'
 
 import React, { useState, useCallback, forwardRef, useImperativeHandle } from 'react'
-import { TrendingUp, TrendingDown, Minus, Info, Loader2, FlaskConical, Sparkles, Wrench } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Info, FlaskConical, Sparkles, Wrench, FileUp, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AnalysisFilterOverlay } from './AnalysisFilterOverlay'
+import { TransactionUploadModal } from './TransactionUploadModal'
+import { ResultsViewSkeleton } from './ResultsViewSkeleton'
 import { analysisAPI } from '@/lib/api/analysis-api'
 import type { 
   MetricResult, 
@@ -58,6 +60,7 @@ interface ResultsViewProps {
   confidenceLevel?: number
   statisticalMethod?: 'frequentist' | 'bayesian' | 'bootstrap'
   multipleTestingCorrection?: 'none' | 'bonferroni' | 'fdr'
+  originalJobId?: string
 }
 
 // Les interfaces sont maintenant importées depuis types/analysis.ts
@@ -124,12 +127,20 @@ export const ResultsView = forwardRef<ResultsViewRef, ResultsViewProps>(({
   dataType = 'aggregated',
   confidenceLevel = 95,
   statisticalMethod = 'frequentist',
-  multipleTestingCorrection = 'none'
+  multipleTestingCorrection = 'none',
+  originalJobId
 }, ref) => {
   const [activeFilters, setActiveFilters] = useState<Record<string, string[]>>({})
   const [filteredResults, setFilteredResults] = useState(analysisResults)
   const [isFilterLoading, setIsFilterLoading] = useState(false)
   const [isFilterOverlayOpen, setIsFilterOverlayOpen] = useState(false)
+  
+  // Transaction upload states
+  const [showTransactionUpload, setShowTransactionUpload] = useState(false)
+  const [selectedMetricForUpload, setSelectedMetricForUpload] = useState<string>('')
+  const [transactionDataLinked, setTransactionDataLinked] = useState<Record<string, boolean>>({})
+  const [enrichedJobId, setEnrichedJobId] = useState<string | null>(null)
+  const [transactionData, setTransactionData] = useState<Record<string, unknown>[] | null>(null)
 
   const handleBackStep = () => {
     if (onBackStep) {
@@ -141,6 +152,41 @@ export const ResultsView = forwardRef<ResultsViewRef, ResultsViewProps>(({
     setIsFilterOverlayOpen(true)
   }
 
+  const handleTransactionUploadClick = (metricName: string) => {
+    setSelectedMetricForUpload(metricName)
+    setShowTransactionUpload(true)
+  }
+
+  const handleTransactionUploadComplete = async (success: boolean, enrichedJobId?: string, uploadedTransactionData?: Record<string, unknown>[]) => {
+    if (success && selectedMetricForUpload) {
+      setTransactionDataLinked(prev => ({
+        ...prev,
+        [selectedMetricForUpload]: true
+      }))
+      
+      // Store the enriched job ID and transaction data for future filtering
+      if (enrichedJobId) {
+        setEnrichedJobId(enrichedJobId)
+        if (uploadedTransactionData) {
+          setTransactionData(uploadedTransactionData)
+        }
+        
+        try {
+          setIsFilterLoading(true)
+          const updatedResults = await analysisAPI.getResults(enrichedJobId)
+          setFilteredResults(updatedResults.results)
+        } catch {
+          // Silently handle error
+        } finally {
+          setIsFilterLoading(false)
+        }
+      }
+    }
+    setShowTransactionUpload(false)
+    setSelectedMetricForUpload('')
+  }
+
+
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     handleBackStep,
@@ -149,25 +195,83 @@ export const ResultsView = forwardRef<ResultsViewRef, ResultsViewProps>(({
   }))
 
   const handleFiltersChange = useCallback(async (newFilters: Record<string, string[]>) => {
-    console.log('🔍 Applying filters:', newFilters)
-    console.log('📊 Original data available:', !!originalData, originalData?.length)
-    console.log('📈 Metrics available:', !!metrics, metrics?.length)
-    console.log('🔄 Variation column:', variationColumn)
     
     setActiveFilters(newFilters)
     setIsFilterLoading(true)
 
     try {
-      // If no filters are applied, show original results
+      // If no filters are applied, show original results (enriched if available)
       if (Object.keys(newFilters).length === 0) {
-        console.log('✅ No filters - showing original results')
-        setFilteredResults(analysisResults)
+        // If we have enriched results, show those, otherwise show original
+        if (enrichedJobId) {
+          const enrichedResults = await analysisAPI.getResults(enrichedJobId)
+          setFilteredResults(enrichedResults.results)
+        } else {
+          setFilteredResults(analysisResults)
+        }
         return
       }
 
-      // If we have original data and metrics config, rerun analysis with filters
-      if (originalData && metrics && variationColumn) {
-        console.log('🚀 Starting filtered analysis...')
+      // Check if current results are enriched with transaction data
+      const hasEnrichedData = enrichedJobId && transactionData && transactionData.length > 0
+      
+      if (hasEnrichedData) {
+        
+        // Transform metrics config for API
+        const metricsConfig = metrics?.map(metric => ({
+          name: metric.name,
+          column: metric.valueColumn || metric.numerator || '',
+          type: metric.type === 'binary' ? 'conversion' : 'count' as 'conversion' | 'revenue' | 'count' | 'ratio',
+          numerator_column: metric.numerator,
+          denominator_column: metric.denominator,
+          unit: metric.unit,
+          currency: metric.currency,
+          decimals: metric.decimals,
+          filters: metric.filters
+        })) || []
+
+        // First, run filtered analysis on original data
+        const response = await analysisAPI.startAnalysis({
+          data: originalData || [],
+          metrics_config: metricsConfig,
+          variation_column: variationColumn || '',
+          user_column: userColumn,
+          confidence_level: confidenceLevel,
+          statistical_method: statisticalMethod,
+          multiple_testing_correction: multipleTestingCorrection,
+          data_type: dataType,
+          filters: newFilters
+        })
+
+        // Wait for filtered analysis to complete
+        const filteredResults = await analysisAPI.getResults(response.job_id)
+
+        // Apply the same filters to transaction data
+        const filteredTransactionData = applyFiltersToTransactionData(transactionData, newFilters)
+
+        // Check if we have any transaction data left after filtering
+        if (filteredTransactionData.length === 0) {
+          setFilteredResults(filteredResults.results)
+          return
+        }
+
+        // Now enrich the filtered results with filtered transaction data using the new endpoint
+        // CRITIQUE: Utiliser l'originalJobId (celui qui a été enrichi) pour trouver le cache
+        // response.job_id = analyse filtrée, originalJobId = analyse originale enrichie
+        const cacheJobId = enrichedJobId || originalJobId // Fallback to original prop if no enriched
+        
+        const enrichmentResponse = await analysisAPI.enrichWithFilteredTransactionData(
+          cacheJobId!, // Job ID de l'enrichissement original (celui qui a le cache)
+          filteredTransactionData,
+          response.job_id // Job ID de l'analyse filtrée (pour référence)
+        )
+
+        // Get the final enriched filtered results
+        const finalResults = await analysisAPI.getResults(enrichmentResponse.job_id)
+        setFilteredResults(finalResults.results)
+        
+      } else if (originalData && metrics && variationColumn) {
+        
         // Transform metrics config for API
         const metricsConfig = metrics.map(metric => ({
           name: metric.name,
@@ -196,22 +300,42 @@ export const ResultsView = forwardRef<ResultsViewRef, ResultsViewProps>(({
 
         // Poll for results
         const results = await analysisAPI.getResults(response.job_id)
-        console.log('✅ Filtered analysis completed:', results.results)
         setFilteredResults(results.results)
       } else {
-        console.log('❌ Missing required data for filtered analysis')
-        console.log('- Original data:', !!originalData)
-        console.log('- Metrics:', !!metrics) 
-        console.log('- Variation column:', !!variationColumn)
       }
-    } catch (error) {
-      console.error('❌ Failed to apply filters:', error)
+    } catch {
       // Keep showing original results on error
       setFilteredResults(analysisResults)
     } finally {
       setIsFilterLoading(false)
     }
-  }, [originalData, metrics, variationColumn, userColumn, dataType, confidenceLevel, statisticalMethod, multipleTestingCorrection, analysisResults])
+  }, [originalData, metrics, variationColumn, userColumn, dataType, confidenceLevel, statisticalMethod, multipleTestingCorrection, analysisResults, enrichedJobId, transactionData, originalJobId])
+
+  // Helper function to apply filters to transaction data
+  const applyFiltersToTransactionData = (transactionData: Record<string, unknown>[], filters: Record<string, string[]>): Record<string, unknown>[] => {
+    if (!filters || Object.keys(filters).length === 0) {
+      return transactionData
+    }
+
+
+    const filteredData = transactionData.filter(transaction => {
+      const matchesAllFilters = Object.entries(filters).every(([dimension, allowedValues]) => {
+        const transactionValue = transaction[dimension]
+        
+        // If the dimension doesn't exist in transaction data, skip this filter
+        if (transactionValue === null || transactionValue === undefined) {
+          return true // Don't filter out records for missing dimensions
+        }
+        
+        return allowedValues.includes(String(transactionValue))
+      })
+      
+      return matchesAllFilters
+    })
+
+
+    return filteredData
+  }
 
   // Use filtered results if available, otherwise use original
   const currentResults = filteredResults || analysisResults
@@ -219,6 +343,21 @@ export const ResultsView = forwardRef<ResultsViewRef, ResultsViewProps>(({
   // Count active filters
   const getActiveFiltersCount = () => {
     return Object.keys(activeFilters).length
+  }
+
+
+  // Check if metric needs transaction-level data for statistical analysis
+  const needsTransactionData = (metric: MetricResult) => {
+    // Don't show CTA if metric is already enriched
+    if ((metric as unknown as { enriched_with_transaction_data?: boolean }).enriched_with_transaction_data) {
+      return false
+    }
+    
+    // Revenue metrics with aggregated data don't have statistical tests
+    return (metric.metric_unit === 'currency' && dataType === 'aggregated') ||
+           (metric.metric_unit === 'count' && dataType === 'aggregated') ||
+           (metric.metric_name.toLowerCase().includes('order') && metric.metric_name.toLowerCase().includes('value') && dataType === 'aggregated') ||
+           (metric.metric_name.toLowerCase().includes('per ') && metric.metric_name.toLowerCase().includes('revenue') && dataType === 'aggregated')
   }
 
   const formatNumber = (value: number | null | undefined, decimals: number = 2): string => {
@@ -283,23 +422,128 @@ export const ResultsView = forwardRef<ResultsViewRef, ResultsViewProps>(({
     
     // Pour revenue avec données agrégées
     if (metric.metric_unit === 'currency' && dataType === 'aggregated') {
-      return {
-        columns: [ColumnType.VARIATION, ColumnType.USERS, ColumnType.TOTAL_REVENUE, ColumnType.REVENUE_PER_USER, ColumnType.UPLIFT],
-        disabledColumns: [ColumnType.SIGNIFICANCE, ColumnType.CI],
-        headerLabels: {
-          [ColumnType.VARIATION]: 'Variation',
-          [ColumnType.USERS]: 'Users', 
-          [ColumnType.TOTAL_REVENUE]: 'Total Revenue',
-          [ColumnType.REVENUE_PER_USER]: 'Revenue/User',
-          [ColumnType.UPLIFT]: 'Uplift'
-        },
-        format: {
-          unit: 'currency',
-          currency: currency,
-          decimals: 2
-        },
-        aggregationType: 'sum',
-        note: "Statistical tests not available for aggregated revenue data"
+      const isEnriched = (metric as unknown as { enriched_with_transaction_data?: boolean }).enriched_with_transaction_data
+      
+      // Déterminer le type de métrique revenue
+      if (metricName.includes('per ') && metricName.includes('revenue')) {
+        // RPU - Métrique liée aux Users
+        if (isEnriched) {
+          return {
+            columns: [ColumnType.VARIATION, ColumnType.USERS, ColumnType.TOTAL_REVENUE, ColumnType.REVENUE_PER_USER, ColumnType.UPLIFT, ColumnType.SIGNIFICANCE, ColumnType.CI],
+            headerLabels: {
+              [ColumnType.VARIATION]: 'Variation',
+              [ColumnType.USERS]: 'Users',
+              [ColumnType.TOTAL_REVENUE]: 'Total Revenue',
+              [ColumnType.REVENUE_PER_USER]: 'RPU',
+              [ColumnType.UPLIFT]: 'Uplift',
+              [ColumnType.SIGNIFICANCE]: 'Confidence & p-value',
+              [ColumnType.CI]: 'Confidence Interval'
+            },
+            format: {
+              unit: 'currency',
+              currency: currency,
+              decimals: 2
+            },
+            aggregationType: 'ratio'
+          }
+        } else {
+          return {
+            columns: [ColumnType.VARIATION, ColumnType.USERS, ColumnType.TOTAL_REVENUE, ColumnType.REVENUE_PER_USER, ColumnType.UPLIFT],
+            disabledColumns: [ColumnType.SIGNIFICANCE, ColumnType.CI],
+            headerLabels: {
+              [ColumnType.VARIATION]: 'Variation',
+              [ColumnType.USERS]: 'Users',
+              [ColumnType.TOTAL_REVENUE]: 'Total Revenue',
+              [ColumnType.REVENUE_PER_USER]: 'RPU',
+              [ColumnType.UPLIFT]: 'Uplift'
+            },
+            format: {
+              unit: 'currency',
+              currency: currency,
+              decimals: 2
+            },
+            aggregationType: 'ratio',
+            note: "Statistical tests not available for aggregated RPU data"
+          }
+        }
+      } else if (metricName.includes('order') && metricName.includes('value')) {
+        // AOV - Métrique liée aux Transactions
+        if (isEnriched) {
+          return {
+            columns: [ColumnType.VARIATION, ColumnType.TRANSACTIONS, ColumnType.TOTAL_REVENUE, ColumnType.VALUE, ColumnType.UPLIFT, ColumnType.SIGNIFICANCE, ColumnType.CI],
+            headerLabels: {
+              [ColumnType.VARIATION]: 'Variation',
+              [ColumnType.TRANSACTIONS]: 'Transactions',
+              [ColumnType.TOTAL_REVENUE]: 'Total Revenue',
+              [ColumnType.VALUE]: 'AOV',
+              [ColumnType.UPLIFT]: 'Uplift',
+              [ColumnType.SIGNIFICANCE]: 'Confidence & p-value',
+              [ColumnType.CI]: 'Confidence Interval'
+            },
+            format: {
+              unit: 'currency',
+              currency: currency,
+              decimals: 2
+            },
+            aggregationType: 'average'
+          }
+        } else {
+          return {
+            columns: [ColumnType.VARIATION, ColumnType.TRANSACTIONS, ColumnType.TOTAL_REVENUE, ColumnType.VALUE, ColumnType.UPLIFT],
+            disabledColumns: [ColumnType.SIGNIFICANCE, ColumnType.CI],
+            headerLabels: {
+              [ColumnType.VARIATION]: 'Variation',
+              [ColumnType.TRANSACTIONS]: 'Transactions',
+              [ColumnType.TOTAL_REVENUE]: 'Total Revenue',
+              [ColumnType.VALUE]: 'AOV',
+              [ColumnType.UPLIFT]: 'Uplift'
+            },
+            format: {
+              unit: 'currency',
+              currency: currency,
+              decimals: 2
+            },
+            aggregationType: 'average',
+            note: "Statistical tests not available for aggregated AOV data"
+          }
+        }
+      } else {
+        // Revenue seul (Revenue, Gross Revenue, Net Revenue, Gross Margin)
+        if (isEnriched) {
+          return {
+            columns: [ColumnType.VARIATION, ColumnType.TOTAL_REVENUE, ColumnType.UPLIFT, ColumnType.SIGNIFICANCE, ColumnType.CI],
+            headerLabels: {
+              [ColumnType.VARIATION]: 'Variation',
+              [ColumnType.TOTAL_REVENUE]: `Total ${metric.metric_name}`,
+              [ColumnType.UPLIFT]: 'Uplift',
+              [ColumnType.SIGNIFICANCE]: 'Confidence & p-value',
+              [ColumnType.CI]: 'Confidence Interval'
+            },
+            format: {
+              unit: 'currency',
+              currency: currency,
+              decimals: 2
+            },
+            aggregationType: 'sum'
+          }
+        } else {
+          return {
+            columns: [ColumnType.VARIATION, ColumnType.TOTAL_REVENUE, ColumnType.UPLIFT],
+            disabledColumns: [ColumnType.SIGNIFICANCE, ColumnType.CI],
+            headerLabels: {
+              [ColumnType.VARIATION]: 'Variation',
+              [ColumnType.TOTAL_REVENUE]: `Total ${metric.metric_name}`,
+              [ColumnType.UPLIFT]: 'Uplift'
+            },
+            format: {
+              unit: 'currency',
+              currency: currency,
+              decimals: 2
+            },
+            aggregationType: 'sum',
+            note: "Statistical tests not available for aggregated revenue data"
+          }
+        }
       }
     }
     
@@ -358,9 +602,14 @@ export const ResultsView = forwardRef<ResultsViewRef, ResultsViewProps>(({
     
     // Pour count metrics
     if (metric.metric_unit === 'count') {
+      const isEnriched = (metric as unknown as { enriched_with_transaction_data?: boolean }).enriched_with_transaction_data
+      const showStatistics = dataType !== 'aggregated' || isEnriched
+      
       return {
-        columns: [ColumnType.VARIATION, ColumnType.USERS, ColumnType.TOTAL_VALUE, ColumnType.VALUE_PER_USER, ColumnType.UPLIFT],
-        disabledColumns: dataType === 'aggregated' ? [ColumnType.SIGNIFICANCE, ColumnType.CI] : undefined,
+        columns: showStatistics 
+          ? [ColumnType.VARIATION, ColumnType.USERS, ColumnType.TOTAL_VALUE, ColumnType.VALUE_PER_USER, ColumnType.UPLIFT, ColumnType.SIGNIFICANCE, ColumnType.CI]
+          : [ColumnType.VARIATION, ColumnType.USERS, ColumnType.TOTAL_VALUE, ColumnType.VALUE_PER_USER, ColumnType.UPLIFT],
+        disabledColumns: showStatistics ? undefined : [ColumnType.SIGNIFICANCE, ColumnType.CI],
         headerLabels: {
           [ColumnType.VARIATION]: 'Variation',
           [ColumnType.USERS]: 'Users',
@@ -370,56 +619,18 @@ export const ResultsView = forwardRef<ResultsViewRef, ResultsViewProps>(({
           [ColumnType.VALUE_PER_USER]: metricName.includes('purchase') ? 'Purchases per User' :
                                       metricName.includes('quantity') ? 'Quantity per User' :
                                       metricName.includes('order') ? 'Orders per User' : 'Count per User',
-          [ColumnType.UPLIFT]: 'Uplift'
+          [ColumnType.UPLIFT]: 'Uplift',
+          [ColumnType.SIGNIFICANCE]: 'Confidence & p-value',
+          [ColumnType.CI]: 'Confidence Interval'
         },
         format: {
           unit: 'count',
           decimals: 0
         },
-        note: dataType === 'aggregated' ? "Statistical tests not available for aggregated count data" : undefined
+        note: showStatistics ? undefined : "Statistical tests not available for aggregated count data"
       }
     }
     
-    // Pour AOV/RPU metrics
-    if (metricName.includes('order') && metricName.includes('value')) {
-      return {
-        columns: [ColumnType.VARIATION, ColumnType.USERS, ColumnType.VALUE, ColumnType.UPLIFT],
-        disabledColumns: dataType === 'aggregated' ? [ColumnType.SIGNIFICANCE, ColumnType.CI] : undefined,
-        headerLabels: {
-          [ColumnType.VARIATION]: 'Variation',
-          [ColumnType.USERS]: 'Users',
-          [ColumnType.VALUE]: `AOV (${currency})`,
-          [ColumnType.UPLIFT]: 'Uplift'
-        },
-        format: {
-          unit: 'currency',
-          currency: currency,
-          decimals: 2
-        },
-        aggregationType: 'average',
-        note: dataType === 'aggregated' ? "Statistical tests not available for aggregated AOV data" : undefined
-      }
-    }
-    
-    if (metricName.includes('per ') && metricName.includes('revenue')) {
-      return {
-        columns: [ColumnType.VARIATION, ColumnType.USERS, ColumnType.VALUE, ColumnType.UPLIFT],
-        disabledColumns: dataType === 'aggregated' ? [ColumnType.SIGNIFICANCE, ColumnType.CI] : undefined,
-        headerLabels: {
-          [ColumnType.VARIATION]: 'Variation',
-          [ColumnType.USERS]: 'Users',
-          [ColumnType.VALUE]: `Revenue per User (${currency})`,
-          [ColumnType.UPLIFT]: 'Uplift'
-        },
-        format: {
-          unit: 'currency',
-          currency: currency,
-          decimals: 2
-        },
-        aggregationType: 'ratio',
-        note: dataType === 'aggregated' ? "Statistical tests not available for aggregated RPU data" : undefined
-      }
-    }
     
     // Default configuration
     return {
@@ -481,6 +692,9 @@ export const ResultsView = forwardRef<ResultsViewRef, ResultsViewProps>(({
       case ColumnType.USERS:
       case ColumnType.BASE_USERS:
         return formatNumber(stats.sample_size, 0)
+      case ColumnType.TRANSACTIONS:
+        // Pour les transactions, on utilise total_quantity ou sample_size selon le contexte
+        return formatNumber((stats as unknown as { transaction_count?: number }).transaction_count || stats.sample_size, 0)
       case ColumnType.CONVERSIONS:
         return formatValue(stats.conversions, 'count', undefined, 0)
       case ColumnType.CONVERSION_RATE:
@@ -606,7 +820,47 @@ export const ResultsView = forwardRef<ResultsViewRef, ResultsViewProps>(({
       <div key={metric.metric_name} className="space-y-2">
         {/* Metric name and significance badge - COMPLETELY OUTSIDE table */}
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-gray-900">{metric.metric_name}</h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-medium text-gray-900">{metric.metric_name}</h3>
+            
+            {/* Transaction data linked indicator */}
+            {(transactionDataLinked[metric.metric_name] || (metric as unknown as { enriched_with_transaction_data?: boolean }).enriched_with_transaction_data) && (
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1 px-2 py-1 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+                      <CheckCircle size={12} />
+                      <span>Transaction data</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">This metric has been enriched with transaction-level data</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            
+            {/* Upload transaction data CTA */}
+            {needsTransactionData(metric) && !transactionDataLinked[metric.metric_name] && (
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleTransactionUploadClick(metric.metric_name)}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors border border-blue-200 hover:border-blue-300"
+                    >
+                      <FileUp size={12} />
+                      <span>Upload Transaction Data</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">Upload transaction-level data to get complete statistical tests</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+          
           <div className="flex items-center gap-2">
             {hasStatisticalTests && (
               <div className={cn(
@@ -767,13 +1021,10 @@ export const ResultsView = forwardRef<ResultsViewRef, ResultsViewProps>(({
                   </div>
                 </div>
               )}
-              {/* Loading overlay */}
+              {/* Loading overlay with skeleton */}
               {isFilterLoading && (
-                <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                    <span className="text-sm text-gray-600">Applying filters...</span>
-                  </div>
+                <div className="absolute inset-0 bg-white bg-opacity-90 z-10 rounded-lg">
+                  <ResultsViewSkeleton />
                 </div>
               )}
               {/* Header with Test Information */}
@@ -839,6 +1090,15 @@ export const ResultsView = forwardRef<ResultsViewRef, ResultsViewProps>(({
           isLoading={isFilterLoading}
         />
       )}
+
+      {/* Transaction Upload Modal */}
+      <TransactionUploadModal
+        isOpen={showTransactionUpload}
+        onClose={() => setShowTransactionUpload(false)}
+        metricName={selectedMetricForUpload}
+        originalJobId={originalJobId}
+        onUploadComplete={handleTransactionUploadComplete}
+      />
     </div>
   )
 })

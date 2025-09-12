@@ -5,6 +5,7 @@ import { fetchExperimentations, fetchMarkets, fetchOwners, fetchKPIs, fetchPages
 import { SelectAnalysis, SelectColumns, TestConfiguration, SuggestedMetrics, StatisticConfiguration, type StatisticConfig } from './configure-analysis'
 import { ResultsView } from './ResultsView'
 import { DetailsSelectAnalysis } from './DetailsSelectAnalysis'
+import { DetailsSelectAnalysisSkeleton } from './DetailsSelectAnalysisSkeleton'
 import { DataImport } from './DataImport'
 import { RunScript } from './RunScript'
 import type { Project } from '@/hooks/useExperimentation'
@@ -203,6 +204,7 @@ export const DataAnalysis = forwardRef<DataAnalysisRef, DataAnalysisProps>(({
       is_significant: boolean
     }>
   } | null>(null)
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null)
   
   const resultsViewRef = useRef<{ handleBackStep?: () => void, handleFilterClick?: () => void, getActiveFiltersCount?: () => number }>(null)
 
@@ -237,7 +239,7 @@ export const DataAnalysis = forwardRef<DataAnalysisRef, DataAnalysisProps>(({
       // Using any for Airtable data due to complex nested types
       const readyTests = experimentations
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .filter((exp: any) => exp.fields?.Status === 'Ready for Analysis')
+        .filter((exp: any) => exp.fields?.Status === 'Ready for Analysis' || exp.fields?.Status === 'Analysing')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .map((exp: any) => ({
           id: exp.id,
@@ -436,8 +438,11 @@ export const DataAnalysis = forwardRef<DataAnalysisRef, DataAnalysisProps>(({
   }
 
   // Gérer le passage aux résultats depuis RunScript
-  const handleRunScriptNext = (results: typeof analysisResults) => {
+  const handleRunScriptNext = (results: typeof analysisResults, jobId?: string) => {
     setAnalysisResults(results)
+    if (jobId) {
+      setCurrentJobId(jobId)
+    }
     setShowRunScript(false)
     setShowResults(true)
     if (onStepChange) {
@@ -481,6 +486,7 @@ export const DataAnalysis = forwardRef<DataAnalysisRef, DataAnalysisProps>(({
           confidenceLevel={statisticConfig.confidenceLevel}
           statisticalMethod={statisticConfig.statisticalMethod}
           multipleTestingCorrection={statisticConfig.multipleTestingCorrection}
+          originalJobId={currentJobId || undefined}
         />
       </div>
     )
@@ -588,7 +594,9 @@ export const DataAnalysis = forwardRef<DataAnalysisRef, DataAnalysisProps>(({
 
             {/* Column 2: Details of the selected test (always 50% width) */}
             <div className="w-1/2 bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
-              {selectedTest ? (
+              {loading ? (
+                <DetailsSelectAnalysisSkeleton />
+              ) : selectedTest ? (
                 <DetailsSelectAnalysis
                   project={selectedTest}
                   onDataRefresh={fetchReadyForAnalysisTests}

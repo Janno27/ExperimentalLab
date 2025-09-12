@@ -22,6 +22,7 @@ import { useFilters } from '@/contexts/FilterContext'
 import { Button } from "@/components/ui/button"
 
 import { ThisYear } from "@/components/dashboard/this-year"
+import { AnalysisMetrics } from "@/components/dashboard/analysis-metrics"
 import { FilteredBadge } from "@/components/ui/filtered-badge"
 
 export default function Page() {
@@ -164,22 +165,26 @@ export default function Page() {
                   />
                 </div>
 
-                {/* Placeholder pour le troisième composant */}
+                {/* Analysis Metrics */}
                 <div className="w-full lg:w-1/3">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-xs font-medium text-gray-500">Coming soon</h3>
+                      <h3 className="text-xs font-medium text-gray-500">Analysis metrics</h3>
+                      {hasActiveFilters() && (
+                        <FilteredBadge filters={{
+                          status: appliedFilters.status,
+                          owner: appliedFilters.owner,
+                          market: appliedFilters.market,
+                          region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
+                          selectedMonth: appliedFilters.selectedMonth
+                        }} />
+                      )}
                     </div>
-                    <span className="text-[10px] text-gray-400">Placeholder</span>
+                    <span className="text-[10px] text-gray-400">This Month</span>
                   </div>
-                  <div className="w-full h-[120px] bg-gray-50 border border-gray-200 rounded-md flex items-center justify-center">
-                    <div className="text-center text-gray-400">
-                      <div className="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-2 flex items-center justify-center">
-                        <span className="text-lg">+</span>
-                      </div>
-                      <p className="text-sm">Nouveau composant</p>
-                    </div>
-                  </div>
+                  <AnalysisMetrics 
+                    selectedMonth={appliedFilters.selectedMonth}
+                  />
                 </div>
 
                                 {/* Top Cro Owners */}

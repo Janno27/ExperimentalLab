@@ -6,8 +6,9 @@ import uuid
 from typing import Dict, Any, Optional
 import asyncio
 from datetime import datetime
+import hashlib
 
-from .models import AnalysisRequest, AnalysisStatus, AnalysisResult
+from .models import AnalysisRequest, AnalysisStatus, AnalysisResult, FilterRequest, TransactionEnrichmentRequest
 from .analysis.analyzer import ABTestAnalyzer
 from .utils.data_validator import DataValidator
 from .utils.json_encoder import clean_json_nan
@@ -30,20 +31,14 @@ def get_cors_origins():
     """Get CORS origins from environment variable"""
     cors_env = os.getenv("CORS_ORIGINS", "")
     
-    # Logger pour debug
-    print(f"[CORS] Environment: {ENV}")
-    print(f"[CORS] CORS_ORIGINS env var: {cors_env}")
-    
     if cors_env:
         origins = [origin.strip() for origin in cors_env.split(",")]
-        print(f"[CORS] Configured origins: {origins}")
     else:
         # Defaults pour développement
         origins = [
             "http://localhost:3000",
             "http://127.0.0.1:3000",
         ]
-        print(f"[CORS] Using default origins: {origins}")
     
     return origins
 
@@ -60,6 +55,11 @@ app.add_middleware(
 # In-memory storage (production devrait utiliser Redis)
 analysis_jobs: Dict[str, Dict[str, Any]] = {}
 
+# Cache pour les données de transaction originales (avec colonnes de segmentation)
+transaction_data_cache: Dict[str, Dict[str, Any]] = {}
+
+
+
 # Health check endpoint pour Render
 @app.get("/health")
 async def health_check():
@@ -73,6 +73,7 @@ async def health_check():
         "port": PORT
     }
 
+
 # Root endpoint
 @app.get("/")
 async def root():
@@ -85,6 +86,8 @@ async def root():
         "endpoints": {
             "health": "/health",
             "analyze": "/api/analyze",
+            "enrich_transaction": "/api/analyze/enrich-transaction",
+            "filter": "/api/analyze/filter",
             "status": "/api/status/{job_id}",
             "results": "/api/results/{job_id}",
             "documentation": "/api-docs" if IS_PRODUCTION else "/docs"
@@ -95,10 +98,6 @@ async def root():
             "instance": os.getenv("RENDER_INSTANCE_ID", "unknown")
         }
     }
-
-class FilterRequest(BaseModel):
-    job_id: str
-    filters: Dict[str, Any]
 
 async def run_analysis(job_id: str, request: AnalysisRequest):
     """Background task to run the analysis"""
@@ -154,6 +153,55 @@ async def run_analysis(job_id: str, request: AnalysisRequest):
         analysis_jobs[job_id]["failed_at"] = datetime.utcnow().isoformat()
         
         print(f"[{datetime.utcnow().isoformat()}] Failed analysis job {job_id}: {str(e)}")
+
+async def run_transaction_enrichment(job_id: str, request: TransactionEnrichmentRequest):
+    """Background task to run transaction data enrichment"""
+    try:
+        # Update job status
+        analysis_jobs[job_id]["status"] = "processing"
+        analysis_jobs[job_id]["started_at"] = datetime.utcnow().isoformat()
+        
+        # Get original job results
+        original_job = analysis_jobs[request.job_id]
+        if original_job["status"] != "completed":
+            raise ValueError("Original job must be completed")
+        
+        original_results = original_job["results"]
+        
+        # Import the enricher
+        from .analysis.transaction_enricher import TransactionEnricher
+        
+        # Initialize enricher with original results (will be updated with filtered data)
+        enricher = TransactionEnricher(
+            original_results=original_results,
+            transaction_data=request.transaction_data
+        )
+        
+        # CRITIQUE: Si l'analyse originale était filtrée, on doit utiliser ses variation breakdowns
+        # pour calculer correctement les RPU
+        enricher.update_variation_breakdown(original_results)
+        
+        # Validate transaction data
+        if not enricher.validate_transaction_data():
+            raise ValueError("Transaction data validation failed")
+        
+        # Check data consistency
+        consistency_check = enricher.validate_data_consistency()
+        
+        # Enrich results
+        enriched_results = enricher.enrich_results()
+        
+        # Update job with enriched results
+        analysis_jobs[job_id]["status"] = "completed"
+        analysis_jobs[job_id]["results"] = enriched_results
+        analysis_jobs[job_id]["completed_at"] = datetime.utcnow().isoformat()
+        analysis_jobs[job_id]["data_consistency"] = consistency_check
+        
+    except Exception as e:
+        # Update job with error
+        analysis_jobs[job_id]["status"] = "failed"
+        analysis_jobs[job_id]["error"] = str(e)
+        analysis_jobs[job_id]["failed_at"] = datetime.utcnow().isoformat()
 
 @app.post("/api/analyze")
 async def analyze(request: AnalysisRequest, background_tasks: BackgroundTasks):
@@ -282,14 +330,152 @@ async def analyze_with_filters(request: FilterRequest, background_tasks: Backgro
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start filtered analysis: {str(e)}")
 
+@app.post("/api/analyze/enrich-transaction")
+async def enrich_with_transaction_data(request: TransactionEnrichmentRequest, background_tasks: BackgroundTasks):
+    """Enrich existing analysis results with transaction-level data"""
+    try:
+        # Validate original job exists and is completed
+        if request.job_id not in analysis_jobs:
+            raise HTTPException(status_code=404, detail="Original job not found")
+        
+        original_job = analysis_jobs[request.job_id]
+        if original_job["status"] != "completed":
+            raise HTTPException(status_code=400, detail="Original job must be completed before enrichment")
+        
+        # Validate transaction data
+        if not request.transaction_data or len(request.transaction_data) == 0:
+            raise HTTPException(status_code=400, detail="Transaction data cannot be empty")
+        
+        # Check required columns in first transaction record
+        required_columns = ['transaction_id', 'variation', 'revenue']
+        if request.transaction_data:
+            first_record = request.transaction_data[0]
+            missing_columns = [col for col in required_columns if col not in first_record]
+            if missing_columns:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Missing required columns in transaction data: {missing_columns}"
+                )
+        
+        # Generate new job ID for enrichment
+        enrichment_job_id = str(uuid.uuid4())
+        
+        # CRITIQUE: Cacher les données de transaction originales pour le filtrage futur
+        # Utiliser l'enrichment_job_id comme clé car c'est ce qui sera utilisé pour la recherche
+        cache_key = f"transaction_data_{enrichment_job_id}"
+        transaction_data_cache[cache_key] = {
+            "data": request.transaction_data,
+            "created_at": datetime.utcnow().isoformat(),
+            "enrichment_job_id": enrichment_job_id,
+            "original_job_id": request.job_id  # Garder une référence au job original
+        }
+        
+        
+        # Initialize enrichment job
+        analysis_jobs[enrichment_job_id] = {
+            "status": "queued",
+            "created_at": datetime.utcnow().isoformat(),
+            "request": request.dict(),
+            "results": None,
+            "error": None,
+            "parent_job_id": request.job_id,
+            "enrichment_type": "transaction_data",
+            "transaction_cache_key": cache_key
+        }
+        
+        # Start background enrichment
+        background_tasks.add_task(run_transaction_enrichment, enrichment_job_id, request)
+        
+        return {
+            "job_id": enrichment_job_id,
+            "parent_job_id": request.job_id,
+            "status": "queued",
+            "transaction_records": len(request.transaction_data),
+            "message": "Transaction enrichment started successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start transaction enrichment: {str(e)}")
+
+@app.post("/api/analyze/enrich-transaction-filtered")
+async def enrich_with_filtered_transaction_data(
+    request: TransactionEnrichmentRequest, 
+    background_tasks: BackgroundTasks
+):
+    """
+    Enrichit les résultats d'analyse avec les données de transaction FILTRÉES.
+    Utilise le cache pour récupérer les données originales et appliquer les filtres.
+    """
+    try:
+        # Le job_id est maintenant l'enrichment_job_id (celui qui a le cache)
+        # L'original_job_id est l'analyse filtrée à enrichir
+        job_to_enrich = request.original_job_id or request.job_id
+        
+        # Vérifier que le job à enrichir existe
+        if job_to_enrich not in analysis_jobs:
+            raise HTTPException(status_code=404, detail=f"Job to enrich {job_to_enrich} not found")
+        
+        job_to_enrich_data = analysis_jobs[job_to_enrich]
+        if job_to_enrich_data["status"] != "completed":
+            raise HTTPException(status_code=400, detail="Job to enrich must be completed before enrichment")
+        
+        # Récupérer les données de transaction depuis le cache
+        # Le job_id passé est maintenant l'enrichment_job_id (celui qui a été utilisé comme clé)
+        cache_key = f"transaction_data_{request.job_id}"
+        
+        
+        if cache_key not in transaction_data_cache:
+            raise HTTPException(status_code=404, detail="Transaction data not found in cache. Please re-upload.")
+        
+        cached_data = transaction_data_cache[cache_key]
+        original_transaction_data = cached_data["data"]
+        
+        # Appliquer les filtres aux données de transaction originales
+        # Les filtres sont déjà appliqués côté frontend dans request.transaction_data
+        # Mais ici on utilise les données du cache pour garder les colonnes de segmentation
+        
+        # Generate new job ID for filtered enrichment
+        enrichment_job_id = str(uuid.uuid4())
+        
+        # Initialize enrichment job
+        analysis_jobs[enrichment_job_id] = {
+            "status": "queued", 
+            "created_at": datetime.utcnow().isoformat(),
+            "request": request.dict(),
+            "results": None,
+            "error": None,
+            "parent_job_id": request.job_id,
+            "enrichment_type": "filtered_transaction_data",
+            "transaction_cache_key": cache_key
+        }
+        
+        # Créer une nouvelle requête avec les données filtrées mais depuis le cache
+        filtered_request = TransactionEnrichmentRequest(
+            job_id=job_to_enrich,  # Le job à enrichir (analyse filtrée)
+            transaction_data=request.transaction_data  # Données déjà filtrées côté frontend
+        )
+        
+        # Start background enrichment
+        background_tasks.add_task(run_transaction_enrichment, enrichment_job_id, filtered_request)
+        
+        return {
+            "job_id": enrichment_job_id,
+            "parent_job_id": request.job_id,
+            "status": "queued",
+            "transaction_records": len(request.transaction_data),
+            "cached_records": len(original_transaction_data),
+            "message": "Filtered transaction enrichment started successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start filtered transaction enrichment: {str(e)}")
+
 # Startup event pour logs
 @app.on_event("startup")
 async def startup_event():
     """Log startup information"""
-    print(f"=" * 50)
-    print(f"A/B Test Analysis API Starting")
-    print(f"Environment: {ENV}")
-    print(f"Port: {PORT}")
-    print(f"CORS Origins: {get_cors_origins()}")
-    print(f"Docs URL: {'/api-docs' if IS_PRODUCTION else '/docs'}")
-    print(f"=" * 50)
+    print(f"A/B Test Analysis API Starting - Environment: {ENV} - Port: {PORT}")

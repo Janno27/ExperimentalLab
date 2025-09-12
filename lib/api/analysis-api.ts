@@ -143,6 +143,13 @@ export class AnalysisAPI {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
+        console.error('API Error Details:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          url,
+          method: options.method
+        })
         throw new Error(
           errorData.detail || `HTTP error! status: ${response.status}`
         )
@@ -181,6 +188,40 @@ export class AnalysisAPI {
       {
         method: 'POST',
         body: JSON.stringify({ job_id: jobId, filters }),
+      }
+    )
+  }
+
+  async enrichWithTransactionData(
+    jobId: string,
+    transactionData: Array<Record<string, unknown>>
+  ): Promise<{ job_id: string; parent_job_id: string; transaction_records: number }> {
+    return this.makeRequest<{ job_id: string; parent_job_id: string; transaction_records: number }>(
+      '/api/analyze/enrich-transaction',
+      {
+        method: 'POST',
+        body: JSON.stringify({ 
+          job_id: jobId, 
+          transaction_data: transactionData 
+        }),
+      }
+    )
+  }
+
+  async enrichWithFilteredTransactionData(
+    jobId: string,
+    transactionData: Array<Record<string, unknown>>,
+    originalJobId?: string
+  ): Promise<{ job_id: string; parent_job_id: string; transaction_records: number; cached_records: number }> {
+    return this.makeRequest<{ job_id: string; parent_job_id: string; transaction_records: number; cached_records: number }>(
+      '/api/analyze/enrich-transaction-filtered',
+      {
+        method: 'POST',
+        body: JSON.stringify({ 
+          job_id: jobId, 
+          transaction_data: transactionData,
+          original_job_id: originalJobId
+        }),
       }
     )
   }
