@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { ChevronsUpDown, User2, Trash2, Check, X, Link2, Copy } from 'lucide-react'
+import { ChevronsUpDown, User2, Trash2, Check, X, Link2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useOrganizationApprovals } from '@/hooks/useOrganizationApprovals'
 
 const roles = [
-  { label: 'Owner', value: 'owner' },
+  { label: 'Super Admin', value: 'super_admin' },
   { label: 'Admin', value: 'admin' },
   { label: 'Member', value: 'member' },
   { label: 'View', value: 'view' },
@@ -30,10 +31,25 @@ export function SettingOrganization() {
   const [approvals, setApprovals] = useState<OrganizationMember[]>([])
   const [roleDropdown, setRoleDropdown] = useState<{ [id: string]: boolean }>({})
   const [pendingRoles, setPendingRoles] = useState<{ [id: string]: string }>({})
-  const [showInviteModal, setShowInviteModal] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
   const dropdownRefs = useRef<{ [id: string]: HTMLDivElement | null }>({})
+  const { refreshApprovalCount } = useOrganizationApprovals()
+
+  // Fonctions utilitaires pour les permissions
+  const canModifyRoles = () => ['admin', 'super_admin'].includes(currentUserRole || '')
+  const canSeeApprovalSection = () => ['admin', 'super_admin'].includes(currentUserRole || '')
+  const canSeeMembers = () => ['member', 'admin', 'super_admin'].includes(currentUserRole || '')
+  const canModifyMember = (memberRole: string) => {
+    if (currentUserRole === 'super_admin') return true
+    if (currentUserRole === 'admin') return memberRole !== 'super_admin'
+    return false
+  }
+  const getAvailableRoles = () => {
+    if (currentUserRole === 'super_admin') return roles
+    if (currentUserRole === 'admin') return roles.filter(r => r.value !== 'super_admin')
+    return []
+  }
 
   const fetchData = async () => {
     console.log('SettingOrganization - Fetching data...')
@@ -152,27 +168,59 @@ export function SettingOrganization() {
   const handleRoleChange = async (id: string, newRole: string) => {
     // Vérifier les permissions
     if (!currentUserRole || !['admin', 'super_admin'].includes(currentUserRole)) {
-      toast.error('Vous n\'avez pas les permissions pour modifier les rôles')
+      toast.error('You don\'t have permission to modify roles')
+      return
+    }
+
+    // Vérifier si l'admin essaie de modifier un super_admin
+    const targetMember = members.find(m => m.id === id)
+    if (currentUserRole === 'admin' && targetMember?.role === 'super_admin') {
+      toast.error('You cannot modify a Super Admin\'s role')
+      return
+    }
+
+    // Vérifier si l'admin essaie d'assigner le rôle super_admin
+    if (currentUserRole === 'admin' && newRole === 'super_admin') {
+      toast.error('You cannot assign the Super Admin role')
       return
     }
     
-    await supabase.from('organization_members').update({ role: newRole }).eq('id', id)
+    const { error } = await supabase.from('organization_members').update({ role: newRole }).eq('id', id)
+    if (error) {
+      toast.error('Error updating role')
+      return
+    }
+    
     setMembers(members => members.map(m => m.id === id ? { ...m, role: newRole } : m))
+    toast.success('Role updated successfully')
   }
   const handleRemove = async (id: string) => {
     // Vérifier les permissions
     if (!currentUserRole || !['admin', 'super_admin'].includes(currentUserRole)) {
-      toast.error('Vous n\'avez pas les permissions pour supprimer des membres')
+      toast.error('You don\'t have permission to remove members')
+      return
+    }
+
+    // Vérifier si l'admin essaie de supprimer un super_admin
+    const targetMember = members.find(m => m.id === id)
+    if (currentUserRole === 'admin' && targetMember?.role === 'super_admin') {
+      toast.error('You cannot remove a Super Admin')
       return
     }
     
-    await supabase.from('organization_members').delete().eq('id', id)
+    const { error } = await supabase.from('organization_members').delete().eq('id', id)
+    if (error) {
+      toast.error('Error removing member')
+      return
+    }
+    
     setMembers(members => members.filter(m => m.id !== id))
+    toast.success('Member removed successfully')
   }
   const handleApprove = async (id: string, role: string) => {
     // Vérifier les permissions
     if (!currentUserRole || !['admin', 'super_admin'].includes(currentUserRole)) {
-      toast.error('Vous n\'avez pas les permissions pour approuver des utilisateurs')
+      toast.error('You don\'t have permission to approve users')
       return
     }
     
@@ -186,7 +234,7 @@ export function SettingOrganization() {
         .eq('id', id)
 
       if (updateError) {
-        toast.error('Erreur lors de l\'approbation')
+        toast.error('Error during approval')
         setIsLoading(false)
         return
       }
@@ -200,11 +248,11 @@ export function SettingOrganization() {
 
       if (memberData?.profiles?.[0]?.email) {
         // Envoyer un email d'approbation (ici tu peux intégrer ton service d'email)
-        console.log(`Email d'approbation envoyé à: ${memberData.profiles[0].email}`)
+        console.log(`Approval email sent to: ${memberData.profiles[0].email}`)
         // TODO: Intégrer un service d'email comme SendGrid, Resend, etc.
-        toast.success(`Utilisateur approuvé et email envoyé à ${memberData.profiles[0].email}`)
+        toast.success(`User approved and email sent to ${memberData.profiles[0].email}`)
       } else {
-        toast.success('Utilisateur approuvé')
+        toast.success('User approved')
       }
 
       // Attendre un peu pour montrer le skeleton
@@ -213,10 +261,13 @@ export function SettingOrganization() {
       // Recharger les données
       await fetchData()
       
+      // Rafraîchir le count des notifications
+      refreshApprovalCount()
+      
       setIsLoading(false)
     } catch (error) {
-      console.error('Erreur lors de l\'approbation:', error)
-      toast.error('Erreur lors de l\'approbation')
+      console.error('Error during approval:', error)
+      toast.error('Error during approval')
       setIsLoading(false)
     }
   }
@@ -224,7 +275,7 @@ export function SettingOrganization() {
   const handleDecline = async (id: string) => {
     // Vérifier les permissions
     if (!currentUserRole || !['admin', 'super_admin'].includes(currentUserRole)) {
-      toast.error('Vous n\'avez pas les permissions pour refuser des utilisateurs')
+      toast.error('You don\'t have permission to decline users')
       return
     }
     
@@ -245,18 +296,18 @@ export function SettingOrganization() {
         .eq('id', id)
 
       if (deleteError) {
-        toast.error('Erreur lors du refus')
+        toast.error('Error declining request')
         setIsLoading(false)
         return
       }
 
       if (memberData?.profiles?.[0]?.email) {
         // Envoyer un email de refus
-        console.log(`Email de refus envoyé à: ${memberData.profiles[0].email}`)
+        console.log(`Decline email sent to: ${memberData.profiles[0].email}`)
         // TODO: Intégrer un service d'email
-        toast.success(`Demande refusée et email envoyé à ${memberData.profiles[0].email}`)
+        toast.success(`Request declined and email sent to ${memberData.profiles[0].email}`)
       } else {
-        toast.success('Demande refusée')
+        toast.success('Request declined')
       }
 
       // Attendre un peu pour montrer le skeleton
@@ -265,10 +316,13 @@ export function SettingOrganization() {
       // Recharger les données
       await fetchData()
       
+      // Rafraîchir le count des notifications
+      refreshApprovalCount()
+      
       setIsLoading(false)
     } catch (error) {
-      console.error('Erreur lors du refus:', error)
-      toast.error('Erreur lors du refus')
+      console.error('Error declining request:', error)
+      toast.error('Error declining request')
       setIsLoading(false)
     }
   }
@@ -276,16 +330,10 @@ export function SettingOrganization() {
     if (!org) return
     const url = `${window.location.origin}/login?orgId=${org.id}&orgName=${encodeURIComponent(org.name)}`
     navigator.clipboard.writeText(url)
-    toast.success('Invite link copied!', { position: 'bottom-left' })
-  }
-
-  const generateInviteLink = () => {
-    if (!org) return ''
-    return `${window.location.origin}/login?orgId=${org.id}&orgName=${encodeURIComponent(org.name)}`
-  }
-
-  const handleShowInviteModal = () => {
-    setShowInviteModal(true)
+    toast.success('Invitation link copied to clipboard!', { 
+      position: 'bottom-right',
+      duration: 3000
+    })
   }
 
   return (
@@ -297,9 +345,10 @@ export function SettingOrganization() {
           <span className="font-semibold text-sm text-gray-900">{org?.name || '...'}</span>
         </div>
       </div>
-      <div>
-        <div className="font-medium text-xs text-gray-500 mb-1">Members</div>
-        <div className="rounded-lg bg-gray-50 p-1.5 divide-y divide-gray-100">
+      {canSeeMembers() && (
+        <div>
+          <div className="font-medium text-xs text-gray-500 mb-1">Members</div>
+          <div className="rounded-lg bg-gray-50 p-1.5 divide-y divide-gray-100">
           {isLoading ? (
             // Skeleton pour les membres
             Array.from({ length: 3 }).map((_, index) => (
@@ -323,10 +372,10 @@ export function SettingOrganization() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="relative" ref={el => { dropdownRefs.current[member.id] = el }}>
-                    {['admin', 'super_admin'].includes(currentUserRole || '') ? (
+                    {canModifyRoles() && canModifyMember(member.role) ? (
                       <>
                         <button
-                          className={`text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 transition-colors ${member.role === 'owner' ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}`}
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 transition-colors ${member.role === 'super_admin' ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}`}
                           onClick={() => setRoleDropdown(d => ({ ...d, [member.id]: !d[member.id] }))}
                         >
                           {roles.find(r => r.value === member.role)?.label || member.role}
@@ -334,7 +383,7 @@ export function SettingOrganization() {
                         </button>
                         {roleDropdown[member.id] && (
                           <div className="absolute right-0 z-10 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-1 min-w-[90px]">
-                            {roles.filter(r => r.value !== 'owner').map(r => (
+                            {getAvailableRoles().map(r => (
                               <div
                                 key={r.value}
                                 className="px-2 py-1.5 text-xs hover:bg-violet-50 cursor-pointer rounded transition-colors"
@@ -347,12 +396,12 @@ export function SettingOrganization() {
                         )}
                       </>
                     ) : (
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${member.role === 'owner' ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${member.role === 'super_admin' ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
                         {roles.find(r => r.value === member.role)?.label || member.role}
                       </span>
                     )}
                   </div>
-                  {member.role !== 'owner' && ['admin', 'super_admin'].includes(currentUserRole || '') && (
+                  {canModifyRoles() && canModifyMember(member.role) && (
                     <button
                       className="text-gray-400 hover:text-red-500 p-0.5"
                       title="Remove"
@@ -366,15 +415,16 @@ export function SettingOrganization() {
             ))
           )}
         </div>
-      </div>
-      {['admin', 'super_admin'].includes(currentUserRole || '') && (
+        </div>
+      )}
+      {canSeeApprovalSection() && (
         <div>
           <div className="flex items-center justify-between mb-1">
             <div className="font-medium text-xs text-gray-500">Approval</div>
             <button
               className="flex items-center gap-1 text-xs text-violet-700 bg-violet-50 hover:bg-violet-100 px-2 py-0.5 rounded transition cursor-pointer"
-              title="Show invite link"
-              onClick={handleShowInviteModal}
+              title="Copy invitation link"
+              onClick={handleCopyInvite}
               type="button"
             >
               <Link2 className="w-3 h-3" /> Invite
@@ -416,7 +466,7 @@ export function SettingOrganization() {
                       </button>
                       {roleDropdown[user.id] && (
                         <div className="absolute right-0 z-10 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-1 min-w-[90px]">
-                          {roles.filter(r => r.value !== 'owner').map(r => (
+                          {getAvailableRoles().map(r => (
                             <div
                               key={r.value}
                               className="px-2 py-1.5 text-xs hover:bg-violet-50 cursor-pointer rounded transition-colors"
@@ -451,52 +501,6 @@ export function SettingOrganization() {
         </div>
       )}
 
-      {/* Modal d'invitation */}
-      {showInviteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Invite Link</h3>
-              <button
-                onClick={() => setShowInviteModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="mb-4">
-              <p className="text-sm text-gray-600 mb-2">
-                Share this link with people you want to invite to your organization:
-              </p>
-              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
-                <input
-                  type="text"
-                  value={generateInviteLink()}
-                  readOnly
-                  className="flex-1 text-sm bg-transparent border-none outline-none"
-                />
-                <button
-                  onClick={handleCopyInvite}
-                  className="text-violet-600 hover:text-violet-700 p-1"
-                  title="Copy link"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowInviteModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 } 
