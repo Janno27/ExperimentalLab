@@ -337,7 +337,7 @@ export function RecentAnalyzedTests() {
       onMouseLeave={() => setMousePosition({ x: 0, y: 0 })}
     >
       {/* Halo violet discret en arrière-plan permanent - réduit et interactif */}
-      <div className="absolute inset-0 -m-8 rounded-full opacity-50 pointer-events-none transition-all duration-300">
+      <div className="absolute inset-0 -m-1 rounded-full opacity-50 pointer-events-none transition-all duration-300">
         <div 
           className="absolute inset-0 bg-gradient-to-r from-purple-200/50 via-purple-100/30 to-purple-200/50 rounded-full blur-xl transition-transform duration-300" 
           style={{ 
