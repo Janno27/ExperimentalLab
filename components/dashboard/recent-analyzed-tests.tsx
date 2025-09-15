@@ -141,9 +141,9 @@ export function RecentAnalyzedTests() {
   const renderContent = () => {
     if (loading) {
       return (
-        <div className="w-96 h-96 flex flex-col items-center justify-center mx-auto">
+        <div className="w-full h-full flex flex-col items-center justify-center mx-auto">
         {/* Stack de cartes skeleton */}
-        <div className="relative w-full h-72 flex items-center justify-center">
+        <div className="relative w-full flex-1 flex items-center justify-center">
           {Array.from({ length: 3 }).map((_, stackIndex) => {
             const zIndex = 3 - stackIndex
             const translateX = stackIndex * 20
@@ -200,7 +200,7 @@ export function RecentAnalyzedTests() {
         </div>
 
         {/* Navigation skeleton */}
-        <div className="flex items-center justify-center mt-4 gap-2">
+        <div className="flex items-center justify-center mt-4 gap-2 flex-shrink-0">
           <div className="w-6 h-6 rounded bg-gray-200 animate-pulse" />
           <div className="w-6 h-6 rounded bg-gray-200 animate-pulse" />
         </div>
@@ -210,7 +210,7 @@ export function RecentAnalyzedTests() {
 
     if (!recentTests.length) {
     return (
-      <div className="w-96 h-96 flex flex-col items-center justify-center mx-auto">
+      <div className="w-full h-full flex flex-col items-center justify-center mx-auto">
         <div className="text-center text-gray-500">
           <FlaskConical className="w-8 h-8 mx-auto mb-2 text-gray-300" />
           <p className="text-xs">No analyzed tests</p>
@@ -220,9 +220,9 @@ export function RecentAnalyzedTests() {
     }
 
     return (
-    <div className="w-96 h-96 flex flex-col items-center justify-center mx-auto">
+    <div className="w-full h-full flex flex-col items-center justify-center mx-auto">
       {/* Stack de cartes */}
-      <div className="relative w-full h-72 flex items-center justify-center">
+      <div className="relative w-full flex-1 flex items-center justify-center">
         {recentTests.slice(currentIndex, currentIndex + 3).map((test, stackIndex) => {
           const zIndex = 3 - stackIndex
           const translateX = stackIndex * 20 // Décalage ajusté pour les cartes plus grandes
@@ -300,7 +300,7 @@ export function RecentAnalyzedTests() {
       </div>
 
       {/* Navigation sous les cartes */}
-      <div className="flex items-center justify-center mt-4 gap-3">
+      <div className="flex items-center justify-center mt-4 gap-3 flex-shrink-0">
         <button
           onClick={handleNext}
           disabled={currentIndex === 0}
@@ -329,38 +329,42 @@ export function RecentAnalyzedTests() {
     )
   }
 
-  // Retourner le contenu avec le halo permanent
+  // Retourner le contenu avec le halo permanent et structure responsive comme this-year.tsx
   return (
-    <div 
-      className="relative" 
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => setMousePosition({ x: 0, y: 0 })}
-    >
-      {/* Halo violet discret en arrière-plan permanent - réduit et interactif */}
-      <div className="absolute inset-0 -m-1 rounded-full opacity-50 pointer-events-none transition-all duration-300">
+    <div className="bg-white rounded-lg border border-gray-200 py-2 w-full h-[90%] flex flex-col">
+      <div className="px-4 flex-1 flex flex-col">
         <div 
-          className="absolute inset-0 bg-gradient-to-r from-purple-200/50 via-purple-100/30 to-purple-200/50 rounded-full blur-xl transition-transform duration-300" 
-          style={{ 
-            transform: `translate(${mousePosition.x}px, ${mousePosition.y}px)` 
-          }}
-        />
-        <div 
-          className="absolute inset-3 bg-gradient-to-r from-purple-100/40 via-purple-50/20 to-purple-100/40 rounded-full blur-lg transition-transform duration-300" 
-          style={{ 
-            transform: `translate(${mousePosition.x * 0.7}px, ${mousePosition.y * 0.7}px)` 
-          }}
-        />
-        <div 
-          className="absolute inset-6 bg-gradient-to-r from-purple-50/30 via-transparent to-purple-50/30 rounded-full blur-md transition-transform duration-300" 
-          style={{ 
-            transform: `translate(${mousePosition.x * 0.4}px, ${mousePosition.y * 0.4}px)` 
-          }}
-        />
-      </div>
-      
-      {/* Contenu relatif par-dessus le halo */}
-      <div className="relative">
-        {renderContent()}
+          className="relative w-full h-full" 
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => setMousePosition({ x: 0, y: 0 })}
+        >
+          {/* Halo violet discret en arrière-plan permanent - réduit et interactif */}
+          <div className="absolute inset-0 -m-1 rounded-full opacity-50 pointer-events-none transition-all duration-300">
+            <div 
+              className="absolute inset-0 bg-gradient-to-r from-purple-200/50 via-purple-100/30 to-purple-200/50 rounded-full blur-xl transition-transform duration-300" 
+              style={{ 
+                transform: `translate(${mousePosition.x}px, ${mousePosition.y}px)` 
+              }}
+            />
+            <div 
+              className="absolute inset-3 bg-gradient-to-r from-purple-100/40 via-purple-50/20 to-purple-100/40 rounded-full blur-lg transition-transform duration-300" 
+              style={{ 
+                transform: `translate(${mousePosition.x * 0.7}px, ${mousePosition.y * 0.7}px)` 
+              }}
+            />
+            <div 
+              className="absolute inset-6 bg-gradient-to-r from-purple-50/30 via-transparent to-purple-50/30 rounded-full blur-md transition-transform duration-300" 
+              style={{ 
+                transform: `translate(${mousePosition.x * 0.4}px, ${mousePosition.y * 0.4}px)` 
+              }}
+            />
+          </div>
+          
+          {/* Contenu relatif par-dessus le halo */}
+          <div className="relative w-full h-full">
+            {renderContent()}
+          </div>
+        </div>
       </div>
     </div>
   )

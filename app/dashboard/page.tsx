@@ -267,6 +267,7 @@ export default function Page() {
                   
                   {/* Recent Analyzed Tests */}
                   <div className="w-full lg:w-1/2">
+                  <div className="mb-6"></div>
                     <div className="h-full">
                       <RecentAnalyzedTests />
                     </div>

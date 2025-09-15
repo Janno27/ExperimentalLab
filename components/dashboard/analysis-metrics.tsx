@@ -281,11 +281,31 @@ export function AnalysisMetrics({
                   </p>
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                <p>{metrics.conclusiveTests} conclusive tests out of {metrics.totalTests} completed tests this month</p>
-                {showComparison && (
-                  <p className="text-gray-400 mt-1">Previous month: {previousMetrics.conclusiveTests}/{previousMetrics.totalTests} ({previousMetrics.significantTestRate}%)</p>
-                )}
+              <TooltipContent 
+                side="bottom" 
+                align="center" 
+                className="p-0 border-0 shadow-lg bg-transparent [&>svg]:fill-white [&>svg]:stroke-white"
+              >
+                <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 max-w-xs">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-gray-600 w-20 flex-shrink-0">Tests:</span>
+                      <span className="text-gray-900">{metrics.conclusiveTests} conclusive out of {metrics.totalTests} completed</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-gray-600 w-20 flex-shrink-0">Period:</span>
+                      <span className="text-gray-900">This month</span>
+                    </div>
+                    {showComparison && (
+                      <div className="pt-2 mt-2 border-t border-gray-100">
+                        <div className="text-xs text-gray-600 mb-1">Previous month:</div>
+                        <div className="text-xs text-gray-500">
+                          {previousMetrics.conclusiveTests}/{previousMetrics.totalTests} ({previousMetrics.significantTestRate}%)
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -334,18 +354,41 @@ export function AnalysisMetrics({
                   </p>
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                <div>
-                  <p><strong>Ready to Analysis:</strong> {metrics.avgTimeReadyToAnalysis} days average</p>
-                  <p><strong>Analysis to Done:</strong> {metrics.avgTimeAnalysisToDone} days average</p>
-                  <p className="text-gray-400 mt-1">Based on experiments from this month</p>
-                  {showComparison && (
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <p className="text-gray-400">Previous month:</p>
-                      <p>Ready to Analysis: {previousMetrics.avgTimeReadyToAnalysis} days</p>
-                      <p>Analysis to Done: {previousMetrics.avgTimeAnalysisToDone} days</p>
+              <TooltipContent 
+                side="bottom" 
+                align="center" 
+                className="p-0 border-0 shadow-lg bg-transparent [&>svg]:fill-white [&>svg]:stroke-white"
+              >
+                <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 max-w-xs">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-gray-600 w-24 flex-shrink-0">Ready to Analysis:</span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Clock className="w-3 h-3 text-blue-600 flex-shrink-0" />
+                        <span className="text-gray-900">{metrics.avgTimeReadyToAnalysis} days avg</span>
+                      </div>
                     </div>
-                  )}
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-gray-600 w-24 flex-shrink-0">Analysis to Done:</span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <TrendingUp className="w-3 h-3 text-purple-600 flex-shrink-0" />
+                        <span className="text-gray-900">{metrics.avgTimeAnalysisToDone} days avg</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-gray-600 w-24 flex-shrink-0">Period:</span>
+                      <span className="text-gray-900">This month</span>
+                    </div>
+                    {showComparison && (
+                      <div className="pt-2 mt-2 border-t border-gray-100">
+                        <div className="text-xs text-gray-600 mb-1">Previous month:</div>
+                        <div className="text-xs text-gray-500 space-y-0.5">
+                          <div>Ready to Analysis: {previousMetrics.avgTimeReadyToAnalysis} days</div>
+                          <div>Analysis to Done: {previousMetrics.avgTimeAnalysisToDone} days</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </TooltipContent>
             </Tooltip>

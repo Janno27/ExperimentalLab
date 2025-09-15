@@ -106,9 +106,9 @@ export function ProjectBar({ project, dayWidth, timelineStart, timelineDays, onP
         <div
           className={`h-full rounded-md ${getStatusColor(project.status, project.winLoss)} shadow-sm transition-all duration-200 relative`}
         >
-          {/* Texte du projet aligné à gauche */}
-          <div className="absolute inset-0 flex items-center px-2">
-            <span className={`text-xs font-medium truncate ${getTextColor(project.status, project.winLoss)}`}>
+          {/* Texte du projet aligné à gauche - peut dépasser de la barre */}
+          <div className="absolute left-0 top-0 bottom-0 flex items-center px-2 whitespace-nowrap">
+            <span className={`text-xs font-medium ${getTextColor(project.status, project.winLoss)}`}>
               {project.title} | {project.status}
             </span>
           </div>
