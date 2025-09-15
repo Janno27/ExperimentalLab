@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon, Play, Settings, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon, Settings } from 'lucide-react'
 import { ABTestCalculator } from '@/components/app-bar/calculator/calculator'
+import { DurationEstimator } from '@/components/ui/duration-estimator'
 
-import { estimateABTestDuration, type ABTestResult } from '@/lib/ab-test-calculator'
+import { type ABTestResult } from '@/lib/ab-test-calculator'
 
 interface StepTimelineProps {
   formData: {
@@ -240,7 +241,6 @@ export function StepTimeline({ formData, updateFormData }: StepTimelineProps) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
   const [calculatorPosition, setCalculatorPosition] = useState({ x: 0, y: 0 })
   const [estimationResult, setEstimationResult] = useState<ABTestResult | null>(null)
-  const [isCalculating, setIsCalculating] = useState(false)
 
   // Calcul automatique du conversion rate
   useEffect(() => {
@@ -311,48 +311,15 @@ export function StepTimeline({ formData, updateFormData }: StepTimelineProps) {
     setIsCalculatorOpen(true)
   }
 
-  const handleRunEstimation = async () => {
-    if (!formData.audience || !formData.conversion || !formData.mde || !formData.trafficAllocation) {
-      return
-    }
+  const handleEstimationComplete = (result: ABTestResult) => {
+    setEstimationResult(result)
 
-    setIsCalculating(true)
-
-    // Simulation d'un délai de calcul
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    const audiencePerDay = parseFloat(formData.audience)
-    const conversionsPerDay = parseFloat(formData.conversion)
-    const mdeValue = formData.mde === 'custom' ? 
-      parseFloat(formData.mdeCustom?.replace(/[^0-9.]/g, '') || '0') / 100 :
-      parseFloat(formData.mde.replace(/[^0-9.]/g, '') || '0') / 100
-    const trafficExposed = parseFloat(formData.trafficAllocation) / 100
-    const alpha = 1 - (parseFloat(formData.statisticalConfidence) / 100)
-    const power = parseFloat(formData.power || '80') / 100
-
-    try {
-      const result = estimateABTestDuration({
-        audiencePerDay,
-        conversionsPerDay,
-        mde: mdeValue,
-        trafficExposed,
-        alpha,
-        power
-      })
-
-      setEstimationResult(result)
-
-      // Mettre à jour la durée estimée dans le formulaire
-      if (formData.expectedLaunch) {
-        const startDate = new Date(formData.expectedLaunch)
-        const endDate = new Date(startDate)
-        endDate.setDate(startDate.getDate() + result.durationDays)
-        updateFormData('endDate', endDate.toISOString().split('T')[0])
-      }
-    } catch (error) {
-      console.error('Erreur lors du calcul:', error)
-    } finally {
-      setIsCalculating(false)
+    // Mettre à jour la durée estimée dans le formulaire
+    if (formData.expectedLaunch) {
+      const startDate = new Date(formData.expectedLaunch)
+      const endDate = new Date(startDate)
+      endDate.setDate(startDate.getDate() + result.durationDays)
+      updateFormData('endDate', endDate.toISOString().split('T')[0])
     }
   }
 
@@ -508,34 +475,18 @@ export function StepTimeline({ formData, updateFormData }: StepTimelineProps) {
             </div>
           </div>
 
-          {/* CTA Run Estimation */}
-          <div className="flex justify-start">
-            <button
-              onClick={handleRunEstimation}
-              disabled={!formData.audience || !formData.conversion || !formData.mde || !formData.trafficAllocation || isCalculating}
-              className="flex items-center gap-2 text-xs text-gray-500 hover:text-purple-600 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              title={!formData.audience || !formData.conversion || !formData.mde || !formData.trafficAllocation ? 
-                "Veuillez remplir Audience, Conversion, MDE et Traffic Allocation pour lancer l'estimation" : 
-                "Lancer l'estimation de durée du test"
-              }
-            >
-              {isCalculating ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <Play className="w-3 h-3" />
-              )}
-              <span>{isCalculating ? 'Calculating...' : 'Run Estimation'}</span>
-            </button>
-          </div>
-
-          {/* Résultats de l'estimation */}
-          {estimationResult && (
-            <div className="text-xs text-gray-600 space-y-1">
-              <div>Estimated Duration: {estimationResult.durationDays} days</div>
-              <div>Sample per Group: {estimationResult.samplePerGroup.toLocaleString()}</div>
-              <div>Total Sample: {estimationResult.totalSample.toLocaleString()}</div>
-            </div>
-          )}
+          {/* Duration Estimator */}
+          <DurationEstimator
+            audience={formData.audience}
+            conversion={formData.conversion}
+            mde={formData.mde}
+            mdeCustom={formData.mdeCustom}
+            trafficAllocation={formData.trafficAllocation}
+            statisticalConfidence={formData.statisticalConfidence}
+            power={formData.power}
+            onEstimationComplete={handleEstimationComplete}
+            size="sm"
+          />
         </div>
 
         {/* Advanced Dropdown */}

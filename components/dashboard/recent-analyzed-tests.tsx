@@ -304,7 +304,7 @@ export function RecentAnalyzedTests() {
         <button
           onClick={handleNext}
           disabled={currentIndex === 0}
-          className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-200 ${
+          className={`w-8 h-8 bg-white rounded-full border flex items-center justify-center transition-all duration-200 ${
             currentIndex === 0
               ? 'text-gray-300 border-gray-200 cursor-not-allowed' 
               : 'text-gray-600 border-gray-300 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700 cursor-pointer'
@@ -337,7 +337,7 @@ export function RecentAnalyzedTests() {
       onMouseLeave={() => setMousePosition({ x: 0, y: 0 })}
     >
       {/* Halo violet discret en arrière-plan permanent - réduit et interactif */}
-      <div className="absolute inset-0 -m-8 rounded-full opacity-30 pointer-events-none transition-all duration-300">
+      <div className="absolute inset-0 -m-8 rounded-full opacity-50 pointer-events-none transition-all duration-300">
         <div 
           className="absolute inset-0 bg-gradient-to-r from-purple-200/50 via-purple-100/30 to-purple-200/50 rounded-full blur-xl transition-transform duration-300" 
           style={{ 
