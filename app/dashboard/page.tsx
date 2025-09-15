@@ -23,7 +23,9 @@ import { Button } from "@/components/ui/button"
 
 import { ThisYear } from "@/components/dashboard/this-year"
 import { AnalysisMetrics } from "@/components/dashboard/analysis-metrics"
+import { RecentAnalyzedTests } from "@/components/dashboard/recent-analyzed-tests"
 import { FilteredBadge } from "@/components/ui/filtered-badge"
+import { SearchSystem } from "@/components/search/search-system"
 
 export default function Page() {
   const currentDate = new Date().toLocaleDateString('en-US', {
@@ -36,6 +38,8 @@ export default function Page() {
   const [firstName, setFirstName] = useState('')
   const [showComparison, setShowComparison] = useState(false)
   const [isFilterOverlayOpen, setIsFilterOverlayOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchActive, setIsSearchActive] = useState(false)
 
   // Compter et vérifier les filtres actifs
   const getActiveFiltersCount = () => {
@@ -85,10 +89,20 @@ export default function Page() {
             />
             {/* SearchBar centrée dans le header */}
             <div className="flex-1 flex justify-center">
-              <SearchBar 
-                placeholder="Search..."
-                onSearch={(value) => console.log('Search:', value)}
-              />
+            <SearchBar 
+              placeholder="Search..."
+              value={searchQuery}
+              showClearButton={isSearchActive}
+              onChange={(e) => {
+                const value = e.target.value
+                setSearchQuery(value)
+                setIsSearchActive(!!value.trim())
+              }}
+              onClear={() => {
+                setSearchQuery('')
+                setIsSearchActive(false)
+              }}
+            />
             </div>
           </div>
           {/* Bouton Filters et icône notification à droite */}
@@ -110,144 +124,157 @@ export default function Page() {
           </div>
         </header>
         
-        {/* Message d'accueil centré avec MonthPicker */}
-        <div className="flex flex-col items-center pt-8 pb-14">
-          <p className="text-sm text-gray-500 mb-2 font-light">
-            {currentDate}
-          </p>
-          <div className="flex items-center gap-4">
-            <h1 className="text-4xl font-light tracking-wide text-gray-700">
-              {firstName ? `Hello, ${firstName} 👋` : 'Hello! 👋'}
-            </h1>
-
+        {/* Message d'accueil centré avec MonthPicker - Masqué en mode recherche */}
+        {!isSearchActive && (
+          <div className="flex flex-col items-center pt-8 pb-14 transition-all duration-300 animate-in fade-in-0 slide-in-from-top-4">
+            <p className="text-sm text-gray-500 mb-2 font-light">
+              {currentDate}
+            </p>
+            <div className="flex items-center gap-4">
+              <h1 className="text-4xl font-light tracking-wide text-gray-700">
+                {firstName ? `Hello, ${firstName} 👋` : 'Hello! 👋'}
+              </h1>
+            </div>
           </div>
-        </div>
+        )}
         
-        {/* Grille dashboard simple */}
-        <div className="flex flex-1 flex-col p-4 pt-0 h-full">
-          <div className="flex flex-col h-full space-y-4">
-            <DashboardProvider filters={{
-              region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
-              status: appliedFilters.status,
-              owner: appliedFilters.owner,
-              market: appliedFilters.market,
-              selectedMonth: appliedFilters.selectedMonth
-            }}>
-              {/* This Month et Top CRO owners côte à côte */}
-              <div className="flex flex-col lg:flex-row gap-4">
-                {/* This Month */}
-                <div className="w-full lg:w-1/3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-xs font-medium text-gray-500">This month</h3>
-                      {hasActiveFilters() && (
-                        <FilteredBadge filters={{
-                          status: appliedFilters.status,
-                          owner: appliedFilters.owner,
-                          market: appliedFilters.market,
-                          region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
-                          selectedMonth: appliedFilters.selectedMonth
-                        }} />
-                      )}
+        {/* Contenu principal - Dashboard ou Recherche */}
+        <div className="flex flex-1 flex-col p-4 pt-0 overflow-hidden">
+          <SearchSystem 
+            searchQuery={searchQuery} 
+            isActive={isSearchActive} 
+          />
+          {!isSearchActive && (
+            /* Mode Dashboard */
+            <div className="flex flex-col h-full space-y-4 transition-all duration-300 animate-in fade-in-0 slide-in-from-bottom-4">
+              <DashboardProvider filters={{
+                region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
+                status: appliedFilters.status,
+                owner: appliedFilters.owner,
+                market: appliedFilters.market,
+                selectedMonth: appliedFilters.selectedMonth
+              }}>
+                {/* This Month et Top CRO owners côte à côte */}
+                <div className="flex flex-col lg:flex-row gap-4">
+                  {/* This Month */}
+                  <div className="w-full lg:w-1/3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xs font-medium text-gray-500">This month</h3>
+                        {hasActiveFilters() && (
+                          <FilteredBadge filters={{
+                            status: appliedFilters.status,
+                            owner: appliedFilters.owner,
+                            market: appliedFilters.market,
+                            region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
+                            selectedMonth: appliedFilters.selectedMonth
+                          }} />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-gray-500">Compare</span>
+                        <Switch
+                          checked={showComparison}
+                          onCheckedChange={setShowComparison}
+                          className="scale-75"
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-gray-500">Compare</span>
-                      <Switch
-                        checked={showComparison}
-                        onCheckedChange={setShowComparison}
-                        className="scale-75"
-                      />
-                    </div>
+                    <ThisMonth 
+                      showComparison={showComparison} 
+                      selectedMonth={appliedFilters.selectedMonth} 
+                    />
                   </div>
-                  <ThisMonth 
-                    showComparison={showComparison} 
-                    selectedMonth={appliedFilters.selectedMonth} 
-                  />
+
+                  {/* Analysis Metrics */}
+                  <div className="w-full lg:w-1/3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xs font-medium text-gray-500">Analysis metrics</h3>
+                        {hasActiveFilters() && (
+                          <FilteredBadge filters={{
+                            status: appliedFilters.status,
+                            owner: appliedFilters.owner,
+                            market: appliedFilters.market,
+                            region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
+                            selectedMonth: appliedFilters.selectedMonth
+                          }} />
+                        )}
+                      </div>
+                      <span className="text-[10px] text-gray-400">This Month</span>
+                    </div>
+                    <AnalysisMetrics 
+                      selectedMonth={appliedFilters.selectedMonth}
+                      showComparison={showComparison}
+                    />
+                  </div>
+
+                  {/* Top Cro Owners */}
+                  <div className="w-full lg:w-1/3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xs font-medium text-gray-500">Top performers</h3>
+                        {hasActiveFilters() && (
+                          <FilteredBadge filters={{
+                            status: appliedFilters.status,
+                            owner: appliedFilters.owner,
+                            market: appliedFilters.market,
+                            region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
+                            selectedMonth: appliedFilters.selectedMonth
+                          }} />
+                        )}
+                      </div>
+                      <span className="text-[10px] text-gray-400">This Month</span>
+                    </div>
+                    <TopCroOwners 
+                      selectedMonth={appliedFilters.selectedMonth}
+                      showComparison={showComparison}
+                    />
+                  </div>
                 </div>
 
-                {/* Analysis Metrics */}
-                <div className="w-full lg:w-1/3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-xs font-medium text-gray-500">Analysis metrics</h3>
-                      {hasActiveFilters() && (
-                        <FilteredBadge filters={{
-                          status: appliedFilters.status,
-                          owner: appliedFilters.owner,
-                          market: appliedFilters.market,
-                          region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
-                          selectedMonth: appliedFilters.selectedMonth
-                        }} />
-                      )}
+                {/* This Year - Prend la hauteur restante et la moitié de la largeur */}
+                <div className="flex-1 flex flex-col lg:flex-row gap-4">
+                  <div className="w-full lg:w-1/2">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xs font-medium text-gray-500">This year</h3>
+                        {(() => {
+                          const hasActiveFilters = (appliedFilters.status && appliedFilters.status.length > 0) || 
+                                                (appliedFilters.owner && appliedFilters.owner.length > 0) || 
+                                                (appliedFilters.market && appliedFilters.market.length > 0) || 
+                                                appliedFilters.region
+                          return hasActiveFilters && (
+                            <FilteredBadge 
+                              filters={{
+                                status: appliedFilters.status,
+                                owner: appliedFilters.owner,
+                                market: appliedFilters.market,
+                                region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
+                                selectedMonth: appliedFilters.selectedMonth
+                              }}
+                              excludeMonth={true}
+                            />
+                          )
+                        })()}
+                      </div>
+                      <span className="text-[10px] text-gray-400">Done per month</span>
                     </div>
-                    <span className="text-[10px] text-gray-400">This Month</span>
-                  </div>
-                  <AnalysisMetrics 
-                    selectedMonth={appliedFilters.selectedMonth}
-                  />
-                </div>
-
-                                {/* Top Cro Owners */}
-                <div className="w-full lg:w-1/3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-xs font-medium text-gray-500">Top performers</h3>
-                      {hasActiveFilters() && (
-                        <FilteredBadge filters={{
-                          status: appliedFilters.status,
-                          owner: appliedFilters.owner,
-                          market: appliedFilters.market,
-                          region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
-                          selectedMonth: appliedFilters.selectedMonth
-                        }} />
-                      )}
+                    <div className="h-full">
+                      <ThisYear />
                     </div>
-                    <span className="text-[10px] text-gray-400">This Month</span>
                   </div>
-                  <TopCroOwners 
-                    selectedMonth={appliedFilters.selectedMonth}
-                    showComparison={showComparison}
-                  />
-                </div>
-              </div>
-
-              {/* This Year - Prend la hauteur restante et la moitié de la largeur */}
-              <div className="flex-1 flex flex-col lg:flex-row gap-4">
-                <div className="w-full lg:w-1/2">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-xs font-medium text-gray-500">This year</h3>
-                      {(() => {
-                        const hasActiveFilters = (appliedFilters.status && appliedFilters.status.length > 0) || 
-                                              (appliedFilters.owner && appliedFilters.owner.length > 0) || 
-                                              (appliedFilters.market && appliedFilters.market.length > 0) || 
-                                              appliedFilters.region
-                        return hasActiveFilters && (
-                          <FilteredBadge 
-                            filters={{
-                              status: appliedFilters.status,
-                              owner: appliedFilters.owner,
-                              market: appliedFilters.market,
-                              region: appliedFilters.region as 'APAC' | 'EMEA' | 'AMER' | undefined,
-                              selectedMonth: appliedFilters.selectedMonth
-                            }}
-                            excludeMonth={true}
-                          />
-                        )
-                      })()}
+                  
+                  {/* Recent Analyzed Tests */}
+                  <div className="w-full lg:w-1/2">
+                    <div className="h-full">
+                      <RecentAnalyzedTests />
                     </div>
-                    <span className="text-[10px] text-gray-400">Done per month</span>
-                  </div>
-                  <div className="h-full">
-                    <ThisYear />
                   </div>
                 </div>
-                
-                {/* Espace vide pour la moitié droite */}
-                <div className="w-full lg:w-1/2"></div>
-              </div>
-            </DashboardProvider>
-          </div>
+              </DashboardProvider>
+            </div>
+          )}
         </div>
 
 

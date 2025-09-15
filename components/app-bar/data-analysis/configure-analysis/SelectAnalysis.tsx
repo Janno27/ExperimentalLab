@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Search, FlaskConical, Sparkles, Wrench, Database } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+import { FlaskConical, Sparkles, Wrench, Database } from 'lucide-react'
+import { SearchBar } from '@/components/ui/searchBar'
 import { SelectAnalysisSkeleton } from '../SelectAnalysisSkeleton'
 
 interface ReadyForAnalysisTest {
@@ -69,15 +69,14 @@ export function SelectAnalysis({ tests, loading, onTestSelect, selectedTestId }:
     <div className="flex flex-col h-full w-full max-h-[calc(90vh-4rem)]">
       {/* Search Bar */}
       <div className="p-6 pb-4 flex-shrink-0">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            placeholder="Search by name, owner or KPI..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+        <SearchBar
+          placeholder="Search by name, owner or KPI..."
+          value={searchTerm}
+          showClearButton={!!searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onClear={() => setSearchTerm('')}
+          className="max-w-full"
+        />
       </div>
 
       {/* Liste des tests avec ScrollArea */}
